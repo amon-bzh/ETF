@@ -226,8 +226,8 @@ def calculate_rendement(fund, period="1y", include_dividends=True, benchmark_tic
         
         print(f"{Fore.YELLOW}PÉRIODE ANALYSÉE:{Style.RESET_ALL}")
         print(f"  Période demandée : {period_label}")
-        print(f"  Date début       : {date_debut.strftime('%Y-%m-%d')}")
-        print(f"  Date fin         : {date_fin.strftime('%Y-%m-%d')}")
+        print(f"  Date début       : {date_debut.strftime('%d/%m/%Y')}")
+        print(f"  Date fin         : {date_fin.strftime('%d/%m/%Y')}")
         print(f"  Nombre de jours  : {nb_jours}")
         print(f"  Prix début       : {prix_debut:.2f}")
         print(f"  Prix fin         : {prix_fin:.2f}")
@@ -290,7 +290,7 @@ def calculate_rendement(fund, period="1y", include_dividends=True, benchmark_tic
         
         # Date du drawdown maximum
         max_dd_date = drawdown.idxmin()
-        print(f"  Date du max DD     : {max_dd_date.strftime('%Y-%m-%d')}")
+        print(f"  Date du max DD     : {max_dd_date.strftime('%d/%m/%Y')}")
         
         print()
         
