@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Objet: module pour aller chercher des informations sur les ETF
+# Nom: etfinfo.py
 
 import sys
 import os
@@ -21,8 +22,11 @@ from datetime import datetime, timedelta
 import numpy as np
 
 # Créer le parser d'argument
-parser = argparse.ArgumentParser()
-parser.add_argument("ticker", help="get_info_on_etf <ticker>")
+parser = argparse.ArgumentParser(
+    prog='etfinfo',
+    description='Outil d\'analyse et d\'information sur les ETF'
+)
+parser.add_argument("ticker", help="Ticker de l'ETF (ex: VWCE.DE)")
 parser.add_argument("--raw", action="store_true", help="Afficher le contenu de Ticker.info.")
 parser.add_argument("--summary", action="store_true", help="Afficher le business summary.")
 parser.add_argument("--financials", action="store_true", help="Afficher les données financières.")
@@ -449,6 +453,60 @@ def write_to_obsidian(info, yqfund):
         dividendYield = info.get('yield', info.get('trailingAnnualDividendYield', None))
         etf_type = "Distribuant" if dividendYield and dividendYield > 0 else "Capitalisant"
         
+        # Détection de l'indice répliqué (depuis le nom ou category)
+        indice_replique = "Non identifié"
+        longNameLower = longName.lower()
+        category = info.get('category', '').lower()
+        
+        # Patterns de détection d'indices
+        if 'msci world' in longNameLower or 'msci world' in category:
+            indice_replique = "MSCI World"
+        elif 'msci acwi' in longNameLower or 'all-world' in longNameLower or 'ftse all-world' in longNameLower:
+            indice_replique = "FTSE All-World / MSCI ACWI"
+        elif 's&p 500' in longNameLower or 'sp500' in longNameLower or 'sp 500' in longNameLower:
+            indice_replique = "S&P 500"
+        elif 'stoxx 50' in longNameLower or 'euro stoxx 50' in longNameLower:
+            indice_replique = "EURO STOXX 50"
+        elif 'stoxx 600' in longNameLower or 'europe 600' in longNameLower:
+            indice_replique = "STOXX Europe 600"
+        elif 'nasdaq' in longNameLower:
+            indice_replique = "NASDAQ"
+        elif 'ftse 100' in longNameLower:
+            indice_replique = "FTSE 100"
+        elif 'dax' in longNameLower:
+            indice_replique = "DAX"
+        elif 'cac 40' in longNameLower:
+            indice_replique = "CAC 40"
+        elif 'emerging' in longNameLower or 'emergent' in longNameLower:
+            indice_replique = "MSCI Emerging Markets"
+        elif 'developed europe' in longNameLower:
+            indice_replique = "FTSE Developed Europe"
+        
+        # URL du site émetteur
+        site_web = "[A compléter]()"
+        fundFamilyLower = fundFamily.lower() if fundFamily != '<non présent>' else ''
+        
+        if 'blackrock' in fundFamilyLower or 'ishares' in fundFamilyLower:
+            # Essayer de construire l'URL BlackRock avec le nom de l'ETF
+            etf_name_encoded = longName.replace(' ', '%20')
+            site_web = f"[BlackRock iShares](https://www.blackrock.com/fr/particuliers/products/investment-funds#/?productView=all&search={etf_name_encoded})"
+        elif 'vanguard' in fundFamilyLower:
+            site_web = "[Vanguard](https://investor.vanguard.com)"
+        elif 'amundi' in fundFamilyLower:
+            site_web = "[Amundi ETF](https://www.amundietf.fr/fr/particuliers)"
+        elif 'lyxor' in fundFamilyLower:
+            site_web = "[Lyxor / Amundi](https://www.amundietf.fr/fr/particuliers)"
+        elif 'spdr' in fundFamilyLower or 'state street' in fundFamilyLower:
+            site_web = "[SPDR / State Street](https://www.ssga.com/fr/en_gb/institutional/etfs)"
+        elif 'xtrackers' in fundFamilyLower or 'dws' in fundFamilyLower:
+            site_web = "[Xtrackers / DWS](https://etf.dws.com)"
+        elif 'wisdomtree' in fundFamilyLower:
+            site_web = "[WisdomTree](https://www.wisdomtree.eu)"
+        elif 'invesco' in fundFamilyLower:
+            site_web = "[Invesco](https://www.invesco.com/us/financial-products/etfs)"
+        else:
+            site_web = "[A compléter - émetteur non reconnu]()"
+        
         # Date de création de l'ETF
         firstTrade = info.get('firstTradeDateEpochUtc', None)
         firstTradeDate = datetime.fromtimestamp(firstTrade).strftime('%d/%m/%Y') if firstTrade else 'N/A'
@@ -608,7 +666,7 @@ def write_to_obsidian(info, yqfund):
             file.write(f"- **Type** : {etf_type}\n")
             file.write(f"- **ISIN** : {isin}\n")
             file.write(f"- **Date de création ETF** : {firstTradeDate}\n")
-            file.write(f"- **Site web** : [A compléter]()\n\n")
+            file.write(f"- **Site web** : {site_web}\n\n")
             
             # 2. Données financières
             file.write(f"## Données financières\n\n")
