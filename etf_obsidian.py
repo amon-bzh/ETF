@@ -63,20 +63,52 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         # Description
         businessSummary = info.get('longBusinessSummary', info.get('description', 'Non disponible'))
         
-        # Répartition et holdings
+        # Répartition et holdings avec multiplication par 100
         try:
             repartition = yqfund.fund_sector_weightings
             if isinstance(repartition, dict) and ticker_symbol in repartition:
                 repartition = repartition[ticker_symbol]
-        except Exception:
+            
+            # Multiplier par 100 si les valeurs sont des décimaux (entre 0 et 1)
+            if hasattr(repartition, 'applymap'):
+                # Pandas < 2.1
+                repartition_fmt = repartition.applymap(
+                    lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
+                )
+            elif hasattr(repartition, 'map'):
+                # Pandas >= 2.1
+                repartition_fmt = repartition.map(
+                    lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
+                )
+            else:
+                repartition_fmt = repartition
+        except Exception as e:
+            print(f"{Fore.YELLOW}Attention: Répartition non disponible - {e}{Style.RESET_ALL}")
             repartition = "Non disponible"
+            repartition_fmt = "Non disponible"
         
         try:
             top_holdings = yqfund.fund_top_holdings
             if isinstance(top_holdings, dict) and ticker_symbol in top_holdings:
                 top_holdings = top_holdings[ticker_symbol]
-        except Exception:
+            
+            # Multiplier par 100 si les valeurs sont des décimaux
+            if hasattr(top_holdings, 'applymap'):
+                # Pandas < 2.1
+                top_holdings_fmt = top_holdings.applymap(
+                    lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
+                )
+            elif hasattr(top_holdings, 'map'):
+                # Pandas >= 2.1
+                top_holdings_fmt = top_holdings.map(
+                    lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
+                )
+            else:
+                top_holdings_fmt = top_holdings
+        except Exception as e:
+            print(f"{Fore.YELLOW}Attention: Holdings non disponibles - {e}{Style.RESET_ALL}")
             top_holdings = "Non disponible"
+            top_holdings_fmt = "Non disponible"
         
         # Calcul de rendement sur 1 an (version complète avec statistiques)
         rendement_data = {}
@@ -304,21 +336,25 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             
             # 6. Répartition sectorielle
             file.write(f"## Répartition sectorielle\n\n")
-            if hasattr(repartition, 'to_string'):
+            if hasattr(repartition_fmt, 'to_string'):
                 file.write("```\n")
-                file.write(repartition.to_string(index=True))
+                file.write(repartition_fmt.to_string(index=True))
                 file.write("\n```\n\n")
+            elif repartition_fmt != "Non disponible":
+                file.write(f"{repartition_fmt}\n\n")
             else:
-                file.write(f"{repartition}\n\n")
+                file.write(f"{repartition_fmt}\n\n")
             
             # 7. Principales positions
             file.write(f"## Principales positions\n\n")
-            if hasattr(top_holdings, 'to_string'):
+            if hasattr(top_holdings_fmt, 'to_string'):
                 file.write("```\n")
-                file.write(top_holdings.to_string(index=True))
+                file.write(top_holdings_fmt.to_string(index=True))
                 file.write("\n```\n\n")
+            elif top_holdings_fmt != "Non disponible":
+                file.write(f"{top_holdings_fmt}\n\n")
             else:
-                file.write(f"{top_holdings}\n\n")
+                file.write(f"{top_holdings_fmt}\n\n")
             
             # 8. Notes personnelles
             file.write(f"## Notes personnelles\n\n")
