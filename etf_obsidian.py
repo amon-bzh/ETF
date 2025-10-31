@@ -70,13 +70,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                 repartition = repartition[ticker_symbol]
             
             # Multiplier par 100 si les valeurs sont des décimaux (entre 0 et 1)
-            if hasattr(repartition, 'applymap'):
-                # Pandas < 2.1
-                repartition_fmt = repartition.applymap(
-                    lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
-                )
-            elif hasattr(repartition, 'map'):
-                # Pandas >= 2.1
+            if hasattr(repartition, 'map'):
                 repartition_fmt = repartition.map(
                     lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
                 )
@@ -93,13 +87,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                 top_holdings = top_holdings[ticker_symbol]
             
             # Multiplier par 100 si les valeurs sont des décimaux
-            if hasattr(top_holdings, 'applymap'):
-                # Pandas < 2.1
-                top_holdings_fmt = top_holdings.applymap(
-                    lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
-                )
-            elif hasattr(top_holdings, 'map'):
-                # Pandas >= 2.1
+            if hasattr(top_holdings, 'map'):
                 top_holdings_fmt = top_holdings.map(
                     lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
                 )
