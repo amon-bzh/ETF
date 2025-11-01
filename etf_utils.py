@@ -2,6 +2,7 @@
 # etf_utils.py - Fonctions utilitaires pour etfinfo
 
 from datetime import datetime
+import yfinance as yf
 
 def format_date_fr(date):
     """Formate une date au format français dd/mm/yyyy"""
@@ -158,3 +159,114 @@ def get_ratio_emoji(ratio_value, ratio_type='sharpe'):
             return '🟢⭐', None
     
     return '', None
+
+def search_ticker_variants(base_ticker):
+    """
+    Recherche les variantes d'un ticker sur différentes places boursières
+    
+    Args:
+        base_ticker: Ticker de base sans suffixe (ex: VWCE)
+    
+    Returns:
+        list: Liste de tuples (ticker_complet, nom, exchange, devise) ou None si aucun
+    """
+    import os
+    from contextlib import redirect_stderr
+    
+    # Suffixes des principales places boursières européennes et US
+    suffixes = {
+        '.DE': 'XETRA (Allemagne)',
+        '.F': 'Frankfurt (Allemagne)', 
+        '.L': 'London Stock Exchange (UK)',
+        '.AS': 'Euronext Amsterdam (Pays-Bas)',
+        '.PA': 'Euronext Paris (France)',
+        '.MI': 'Borsa Italiana (Italie)',
+        '.SW': 'SIX Swiss Exchange (Suisse)',
+        '': 'US Markets (NYSE/NASDAQ)'
+    }
+    
+    results = []
+    
+    print(f"🔍 Recherche de variantes pour '{base_ticker}'...\n")
+    
+    for suffix, exchange_name in suffixes.items():
+        ticker = base_ticker + suffix if suffix else base_ticker
+        
+        try:
+            # Supprimer les messages d'erreur HTTP
+            with open(os.devnull, 'w') as devnull:
+                with redirect_stderr(devnull):
+                    fund = yf.Ticker(ticker)
+                    info = fund.info
+            
+            # Vérifier si le ticker existe vraiment
+            if info and 'symbol' in info and info.get('regularMarketPrice'):
+                name = info.get('shortName', info.get('longName', 'N/A'))
+                exchange = info.get('exchange', 'N/A')
+                currency = info.get('currency', 'N/A')
+                price = info.get('regularMarketPrice', 'N/A')
+                
+                results.append({
+                    'ticker': ticker,
+                    'name': name,
+                    'exchange': exchange,
+                    'exchange_name': exchange_name,
+                    'currency': currency,
+                    'price': price
+                })
+        except Exception:
+            # Le ticker n'existe pas sur cette place, on continue silencieusement
+            pass
+    
+    return results if results else None
+
+def display_ticker_choices(results):
+    """
+    Affiche les choix de tickers trouvés et demande à l'utilisateur de choisir
+    
+    Args:
+        results: Liste des résultats de search_ticker_variants
+    
+    Returns:
+        str: Ticker choisi ou None si annulation
+    """
+    from colorama import Fore, Style
+    
+    if not results:
+        return None
+    
+    print(f"{Fore.GREEN}✓ {len(results)} variante(s) trouvée(s):{Style.RESET_ALL}\n")
+    
+    # Afficher les options
+    for i, result in enumerate(results, 1):
+        price_str = f"{result['price']:.2f}" if isinstance(result['price'], (int, float)) else str(result['price'])
+        
+        print(f"{Fore.CYAN}[{i}]{Style.RESET_ALL} {Style.BRIGHT}{result['ticker']}{Style.RESET_ALL}")
+        print(f"    Nom       : {result['name']}")
+        print(f"    Place     : {result['exchange_name']}")
+        print(f"    Exchange  : {result['exchange']}")
+        print(f"    Devise    : {result['currency']}")
+        print(f"    Prix      : {price_str} {result['currency']}")
+        print()
+    
+    # Demander le choix
+    while True:
+        try:
+            choice = input(f"{Fore.YELLOW}Choisissez un ticker [1-{len(results)}] ou 'q' pour annuler: {Style.RESET_ALL}")
+            
+            if choice.lower() == 'q':
+                print("Annulation.")
+                return None
+            
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(results):
+                selected = results[choice_num - 1]['ticker']
+                print(f"\n{Fore.GREEN}✓ Ticker sélectionné: {selected}{Style.RESET_ALL}\n")
+                return selected
+            else:
+                print(f"{Fore.RED}Choix invalide. Entrez un nombre entre 1 et {len(results)}.{Style.RESET_ALL}")
+        except ValueError:
+            print(f"{Fore.RED}Choix invalide. Entrez un nombre ou 'q'.{Style.RESET_ALL}")
+        except KeyboardInterrupt:
+            print("\n\nAnnulation.")
+            return None

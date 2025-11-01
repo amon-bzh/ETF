@@ -5,6 +5,10 @@ import sys
 import yfinance as yf
 from yahooquery import Ticker
 from colorama import Fore, Style
+import warnings
+
+# Supprimer les warnings de yfinance
+warnings.filterwarnings('ignore')
 
 def get_ticker_data(ticker_symbol):
     """
@@ -22,17 +26,35 @@ def get_ticker_data(ticker_symbol):
 
         # Lire les infos générales - utiliser fast_info comme fallback
         try:
-            info = fund.info
+            # Désactiver temporairement stderr pour masquer les erreurs HTTP
+            import os
+            from contextlib import redirect_stderr
+            
+            with open(os.devnull, 'w') as devnull:
+                with redirect_stderr(devnull):
+                    info = fund.info
+            
+            # Vérifier que le ticker existe vraiment (a des données valides)
+            if not info or 'symbol' not in info or not info.get('regularMarketPrice'):
+                return None
+                
         except Exception:
             # Fallback sur fast_info si info échoue
-            info = fund.fast_info.__dict__ if hasattr(fund, 'fast_info') else {}
-            print(f"{Fore.YELLOW}Attention: utilisation de données limitées (fast_info){Style.RESET_ALL}\n")
+            try:
+                info = fund.fast_info.__dict__ if hasattr(fund, 'fast_info') else {}
+                
+                # Si même fast_info est vide, le ticker n'existe pas
+                if not info:
+                    return None
+                
+                print(f"{Fore.YELLOW}Attention: utilisation de données limitées (fast_info){Style.RESET_ALL}\n")
+            except:
+                return None
         
         return fund, yqfund, info
 
-    except Exception as e:
-        print(f"{Fore.RED}Le ticker n'est pas reconnu:{Style.RESET_ALL}")
-        print(str(e))
+    except Exception:
+        # Ne pas afficher l'erreur ici, elle sera gérée par le script principal
         return None
 
 def get_raw_info(info):

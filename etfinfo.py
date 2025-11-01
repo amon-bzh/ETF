@@ -3,6 +3,7 @@
 
 import sys
 import argparse
+from colorama import Fore, Style
 
 # Imports des modules locaux
 from etf_core import (
@@ -17,6 +18,7 @@ from etf_core import (
 )
 from etf_analysis import calculate_rendement
 from etf_obsidian import write_to_obsidian
+from etf_utils import search_ticker_variants, display_ticker_choices
 
 # Créer le parser d'argument
 parser = argparse.ArgumentParser(
@@ -45,6 +47,44 @@ args = parser.parse_args()
 ticker_symbol = args.ticker
 result = get_ticker_data(ticker_symbol)
 
+# Si le ticker n'est pas trouvé, proposer une recherche interactive
+if result is None:
+    print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' n'a pas été trouvé.{Style.RESET_ALL}")
+    print(f"Souhaitez-vous rechercher des variantes ? (o/n)")
+    
+    try:
+        response = input().lower()
+        if response == 'o' or response == 'y':
+            # Rechercher les variantes
+            variants = search_ticker_variants(ticker_symbol)
+            
+            if variants:
+                # Proposer le choix
+                selected_ticker = display_ticker_choices(variants)
+                
+                if selected_ticker:
+                    # Réessayer avec le ticker sélectionné
+                    ticker_symbol = selected_ticker
+                    result = get_ticker_data(ticker_symbol)
+                    
+                    if result is None:
+                        print(f"{Fore.RED}Erreur lors du chargement du ticker sélectionné.{Style.RESET_ALL}")
+                        sys.exit(1)
+                else:
+                    sys.exit(0)
+            else:
+                print(f"{Fore.RED}Aucune variante trouvée pour '{ticker_symbol}'.{Style.RESET_ALL}")
+                sys.exit(1)
+        else:
+            sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n\nAnnulation.")
+        sys.exit(0)
+else:
+    # Le ticker existe, on continue normalement
+    pass
+
+# Si on arrive ici sans result valide, on quitte
 if result is None:
     sys.exit(1)
 
