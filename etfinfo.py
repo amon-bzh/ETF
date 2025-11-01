@@ -19,6 +19,7 @@ from etf_core import (
 from etf_analysis import calculate_rendement
 from etf_obsidian import write_to_obsidian
 from etf_utils import search_ticker_variants, display_ticker_choices
+from etf_logging import setup_logging, log_info, log_warning, log_debug, log_error
 
 # Créer le parser d'argument
 parser = argparse.ArgumentParser(
@@ -39,16 +40,23 @@ parser.add_argument("--period", type=str, default="1y",
                     help="Période pour le calcul de rendement (1mo, 3mo, 6mo, 1y, 2y, 5y, max) ou dates YYYY-MM-DD:YYYY-MM-DD")
 parser.add_argument("--no-dividends", action="store_true", help="Exclure les dividendes du calcul de rendement.")
 parser.add_argument("--benchmark", type=str, help="Comparer avec un benchmark (ex: ^GSPC pour S&P500)")
+parser.add_argument("--debug", action="store_true", help="Activer le mode debug avec logs dans fichier")
 
 # Analyser les arguments en ligne de commande
 args = parser.parse_args()
+log_debug(f"Arguments: {args}")
+setup_logging(debug=args.debug)
+log_info(f"Démarrage etfinfo avec ticker: {args.ticker}")
+log_info(f"Lancement de etfinfo.py avec arguments : {sys.argv}")
 
 # Récupérer le ticker
 ticker_symbol = args.ticker
+log_info(f"Tentative de récupération des données pour le ticker : {ticker_symbol}")
 result = get_ticker_data(ticker_symbol)
 
 # Si le ticker n'est pas trouvé, proposer une recherche interactive
 if result is None:
+    log_info(f"Ticker {ticker_symbol} introuvable — proposition de recherche de variantes.")
     print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' n'a pas été trouvé.{Style.RESET_ALL}")
     print(f"Souhaitez-vous rechercher des variantes ? (o/n)")
     
@@ -56,11 +64,13 @@ if result is None:
         response = input().lower()
         if response == 'o' or response == 'y':
             # Rechercher les variantes
+            log_debug(f"Recherche de variantes pour le ticker : {ticker_symbol}")
             variants = search_ticker_variants(ticker_symbol)
             
             if variants:
                 # Proposer le choix
                 selected_ticker = display_ticker_choices(variants)
+                log_info(f"Utilisateur a sélectionné le ticker alternatif : {selected_ticker}")
                 
                 if selected_ticker:
                     # Réessayer avec le ticker sélectionné
@@ -68,11 +78,13 @@ if result is None:
                     result = get_ticker_data(ticker_symbol)
                     
                     if result is None:
+                        log_error(f"Erreur lors du chargement du ticker sélectionné : {selected_ticker}")
                         print(f"{Fore.RED}Erreur lors du chargement du ticker sélectionné.{Style.RESET_ALL}")
                         sys.exit(1)
                 else:
                     sys.exit(0)
             else:
+                log_info(f"Aucune variante trouvée pour {ticker_symbol}")
                 print(f"{Fore.RED}Aucune variante trouvée pour '{ticker_symbol}'.{Style.RESET_ALL}")
                 sys.exit(1)
         else:
@@ -91,6 +103,7 @@ if result is None:
 fund, yqfund, info = result
 
 # Programme principal avec traitement des options
+log_info(f"Traitement des options pour le ticker : {ticker_symbol}")
 if args.raw:
     get_raw_info(info)
 elif args.financials:
@@ -124,4 +137,7 @@ elif args.all:
     get_top_holdings(yqfund, ticker_symbol)
     get_history(fund)
 else:
+    log_info("Aucune option spécifique fournie, affichage des informations de base")
     get_basic_info(info, ticker_symbol)
+    
+log_info(f"Exécution terminée pour {ticker_symbol}")

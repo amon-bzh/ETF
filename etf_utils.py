@@ -3,6 +3,7 @@
 
 from datetime import datetime
 import yfinance as yf
+from etf_logging import log_debug, log_info
 
 def format_date_fr(date):
     """Formate une date au format français dd/mm/yyyy"""

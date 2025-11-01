@@ -18,3 +18,7 @@ venv-etf/
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+etfinfo_*.log

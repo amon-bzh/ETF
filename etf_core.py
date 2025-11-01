@@ -6,6 +6,7 @@ import yfinance as yf
 from yahooquery import Ticker
 from colorama import Fore, Style
 import warnings
+from etf_logging import log_debug, log_info, log_warning, log_error, log_exception
 
 # Supprimer les warnings de yfinance
 warnings.filterwarnings('ignore')
