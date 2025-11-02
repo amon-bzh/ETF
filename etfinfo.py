@@ -22,33 +22,43 @@ from etf_obsidian import write_to_obsidian
 from etf_utils import search_ticker_variants, display_ticker_choices
 from etf_logging import setup_logging, log_info, log_warning, log_debug, log_error
 
-# Créer le parser d'argument
-parser = argparse.ArgumentParser(
-    prog='etfinfo',
-    description='Outil d\'analyse et d\'information sur les ETF'
-)
-parser.add_argument("ticker", help="Ticker de l'ETF (ex: VWCE.DE)")
-parser.add_argument("--raw", action="store_true", help="Afficher le contenu de Ticker.info.")
-parser.add_argument("--summary", action="store_true", help="Afficher le business summary.")
-parser.add_argument("--financials", action="store_true", help="Afficher les données financières.")
-parser.add_argument("--repartition", action="store_true", help="Afficher la répartition par secteurs de l'ETF.")
-parser.add_argument("--top-holdings", action="store_true", help="Retrieves Top 10 holdings for a given symbol(s).")
-parser.add_argument("--obsidian", action="store_true", help="Créé une fiche dans Obsidian pour l'ETF sélectionné.")
-parser.add_argument("--all", action="store_true", help="Afficher toutes les informations disponibles.")
-parser.add_argument("--history", action="store_true", help="Afficher l'historique sur 1 mois.")
-parser.add_argument("--rendement", action="store_true", help="Calculer le rendement sur une période.")
-parser.add_argument("--period", type=str, default="1y", 
-                    help="Période pour le calcul de rendement (1mo, 3mo, 6mo, 1y, 2y, 5y, max) ou dates YYYY-MM-DD:YYYY-MM-DD")
-parser.add_argument("--no-dividends", action="store_true", help="Exclure les dividendes du calcul de rendement.")
-parser.add_argument("--benchmark", type=str, help="Comparer avec un benchmark (ex: ^GSPC pour S&P500)")
-parser.add_argument("--debug", action="store_true", help="Activer le mode debug avec logs dans fichier")
+def main():
+    """
+    Point d'entrée principal.
+    Étapes suivantes: déplacer progressivement la logique ici et
+    remplacer les sys.exit() internes par des return codes.
+    """
+    # Créer le parser d'argument
+    parser = argparse.ArgumentParser(
+        prog='etfinfo',
+        description='Outil d\'analyse et d\'information sur les ETF'
+    )
+    parser.add_argument("ticker", help="Ticker de l'ETF (ex: VWCE.DE)")
+    parser.add_argument("--raw", action="store_true", help="Afficher le contenu de Ticker.info.")
+    parser.add_argument("--summary", action="store_true", help="Afficher le business summary.")
+    parser.add_argument("--financials", action="store_true", help="Afficher les données financières.")
+    parser.add_argument("--repartition", action="store_true", help="Afficher la répartition par secteurs de l'ETF.")
+    parser.add_argument("--top-holdings", action="store_true", help="Retrieves Top 10 holdings for a given symbol(s).")
+    parser.add_argument("--obsidian", action="store_true", help="Créé une fiche dans Obsidian pour l'ETF sélectionné.")
+    parser.add_argument("--all", action="store_true", help="Afficher toutes les informations disponibles.")
+    parser.add_argument("--history", action="store_true", help="Afficher l'historique sur 1 mois.")
+    parser.add_argument("--rendement", action="store_true", help="Calculer le rendement sur une période.")
+    parser.add_argument("--period", type=str, default="1y", 
+                        help="Période pour le calcul de rendement (1mo, 3mo, 6mo, 1y, 2y, 5y, max) ou dates YYYY-MM-DD:YYYY-MM-DD")
+    parser.add_argument("--no-dividends", action="store_true", help="Exclure les dividendes du calcul de rendement.")
+    parser.add_argument("--benchmark", type=str, help="Comparer avec un benchmark (ex: ^GSPC pour S&P500)")
+    parser.add_argument("--debug", action="store_true", help="Activer le mode debug avec logs dans fichier")
 
-# Analyser les arguments en ligne de commande
-args = parser.parse_args()
-setup_logging(debug=args.debug)
-log_debug(f"Arguments: {args}")
-log_info(f"Démarrage etfinfo avec ticker: {args.ticker}")
-log_info(f"Lancement de etfinfo.py avec arguments : {sys.argv}")
+    # Analyser les arguments en ligne de commande
+    args = parser.parse_args()
+    setup_logging(debug=args.debug)
+    log_debug(f"Arguments: {args}")
+    log_info(f"Démarrage etfinfo avec ticker: {args.ticker}")
+    log_info(f"Lancement de etfinfo.py avec arguments : {sys.argv}")
+    
+    return args
+    
+args = main()
 
 # Récupérer le ticker
 ticker_symbol = args.ticker
@@ -212,3 +222,7 @@ else:
     get_basic_info(info, ticker_symbol)
     
 log_info(f"Exécution terminée pour {ticker_symbol}")
+
+# TODO: activer quand la migration vers main() sera finie
+# if __name__ == "__main__":
+#     sys.exit(main())
