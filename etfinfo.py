@@ -167,6 +167,7 @@ def main():
         log_info("Aucune option spécifique fournie, affichage des informations de base")
         get_basic_info(info, ticker_symbol)
 
+    log_info(f"Exécution terminée pour {ticker_symbol}")
     
     return args, ticker_symbol, fund, yqfund, info
     
@@ -286,8 +287,7 @@ if result is None:
 fund, yqfund, info = result
 log_info(f"Données récupérées avec succès pour {ticker_symbol}")
 
-    
-log_info(f"Exécution terminée pour {ticker_symbol}")
+
 
 # TODO: activer quand la migration vers main() sera finie
 # if __name__ == "__main__":
