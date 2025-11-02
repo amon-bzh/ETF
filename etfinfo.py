@@ -108,9 +108,20 @@ def main():
         return None, None  # temporaire: signale un arrêt propre
     ticker_symbol = resolved
     
-    return args, ticker_symbol
+    log_info(f"Tentative de récupération des données pour {ticker_symbol}")
+    result = get_ticker_data(ticker_symbol)
+
+    if result is None:
+        print(f"{Fore.RED}Impossible de récupérer '{ticker_symbol}'.{Style.RESET_ALL}")
+        log_error(f"Impossible de récupérer les données pour {ticker_symbol}")
+        return args, ticker_symbol, None, None, None
+
+    fund, yqfund, info = result
+    log_info(f"Données récupérées pour {ticker_symbol}")
     
-args, ticker_symbol = main()
+    return args, ticker_symbol, fund, yqfund, info
+    
+args, ticker_symbol, fund, yqfund, info = main()
 
 if args is None:
     sys.exit(1)
