@@ -44,8 +44,8 @@ parser.add_argument("--debug", action="store_true", help="Activer le mode debug 
 
 # Analyser les arguments en ligne de commande
 args = parser.parse_args()
-log_debug(f"Arguments: {args}")
 setup_logging(debug=args.debug)
+log_debug(f"Arguments: {args}")
 log_info(f"Démarrage etfinfo avec ticker: {args.ticker}")
 log_info(f"Lancement de etfinfo.py avec arguments : {sys.argv}")
 
