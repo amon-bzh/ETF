@@ -4,6 +4,7 @@
 import sys
 import argparse
 from colorama import Fore, Style
+import re
 
 # Imports des modules locaux
 from etf_core import (
@@ -51,14 +52,21 @@ log_info(f"Lancement de etfinfo.py avec arguments : {sys.argv}")
 
 # Récupérer le ticker
 ticker_symbol = args.ticker
-log_info(f"Tentative de récupération des données pour le ticker : {ticker_symbol}")
-result = get_ticker_data(ticker_symbol)
 
-# Si le ticker n'est pas trouvé, proposer une recherche interactive
-if result is None:
-    log_info(f"Ticker {ticker_symbol} introuvable — proposition de recherche de variantes.")
-    print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' n'a pas été trouvé.{Style.RESET_ALL}")
-    print(f"Souhaitez-vous rechercher des variantes ? (o/n)")
+# Vérifier le format du ticker
+# Format avec suffixe: 4-5 lettres + point + 1-2 lettres (ex: VWCE.DE, IWDA.AS)
+ticker_with_suffix = re.compile(r"^[A-Z0-9]{3,5}\.[A-Z]{1,2}$")
+
+result = None
+
+# Déterminer si le ticker semble complet
+is_complete_ticker = ticker_with_suffix.match(ticker_symbol)
+
+# Si le ticker semble incomplet (4+ lettres sans suffixe)
+if not is_complete_ticker and len(ticker_symbol) >= 4:
+    log_warning(f"Ticker '{ticker_symbol}' semble incomplet (manque le suffixe de place).")
+    print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' semble incomplet.{Style.RESET_ALL}")
+    print("Souhaitez-vous rechercher sur quelles places il est coté ? (o/n)")
     
     try:
         response = input().lower()
@@ -82,54 +90,117 @@ if result is None:
                         print(f"{Fore.RED}Erreur lors du chargement du ticker sélectionné.{Style.RESET_ALL}")
                         sys.exit(1)
                 else:
+                    log_info("Utilisateur a annulé la sélection")
                     sys.exit(0)
             else:
-                log_info(f"Aucune variante trouvée pour {ticker_symbol}")
+                log_warning(f"Aucune variante trouvée pour {ticker_symbol}")
                 print(f"{Fore.RED}Aucune variante trouvée pour '{ticker_symbol}'.{Style.RESET_ALL}")
                 sys.exit(1)
         else:
+            log_info("Utilisateur a refusé la recherche de variantes")
             sys.exit(1)
     except KeyboardInterrupt:
+        log_info("Interruption utilisateur (Ctrl+C)")
         print("\n\nAnnulation.")
         sys.exit(0)
+elif not is_complete_ticker:
+    # Ticker mal formaté (trop court ou caractères invalides)
+    log_error(f"Ticker '{ticker_symbol}' mal formaté.")
+    print(f"\n{Fore.RED}Le ticker '{ticker_symbol}' n'est pas au bon format.{Style.RESET_ALL}")
+    print("Format attendu: XXXX.YY (ex: VWCE.DE)")
+    sys.exit(1)
 else:
-    # Le ticker existe, on continue normalement
-    pass
+    # Le ticker semble bien formaté, tenter de récupérer les données
+    log_info(f"Tentative de récupération des données pour le ticker : {ticker_symbol}")
+    result = get_ticker_data(ticker_symbol)
+    
+    # Si le ticker est bien formaté mais n'existe pas
+    if result is None:
+        log_warning(f"Ticker bien formaté mais introuvable: {ticker_symbol}")
+        print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' n'a pas été trouvé.{Style.RESET_ALL}")
+        print("Souhaitez-vous rechercher des variantes ? (o/n)")
+        
+        try:
+            response = input().lower()
+            if response == 'o' or response == 'y':
+                log_debug(f"Recherche de variantes pour le ticker : {ticker_symbol}")
+                variants = search_ticker_variants(ticker_symbol)
+                
+                if variants:
+                    selected_ticker = display_ticker_choices(variants)
+                    log_info(f"Utilisateur a sélectionné le ticker alternatif : {selected_ticker}")
+                    
+                    if selected_ticker:
+                        ticker_symbol = selected_ticker
+                        result = get_ticker_data(ticker_symbol)
+                        
+                        if result is None:
+                            log_error(f"Erreur lors du chargement du ticker sélectionné : {selected_ticker}")
+                            print(f"{Fore.RED}Erreur lors du chargement du ticker sélectionné.{Style.RESET_ALL}")
+                            sys.exit(1)
+                    else:
+                        log_info("Utilisateur a annulé la sélection")
+                        sys.exit(0)
+                else:
+                    log_warning(f"Aucune variante trouvée pour {ticker_symbol}")
+                    print(f"{Fore.RED}Aucune variante trouvée pour '{ticker_symbol}'.{Style.RESET_ALL}")
+                    sys.exit(1)
+            else:
+                log_info("Utilisateur a refusé la recherche de variantes")
+                sys.exit(1)
+        except KeyboardInterrupt:
+            log_info("Interruption utilisateur (Ctrl+C)")
+            print("\n\nAnnulation.")
+            sys.exit(0)
 
 # Si on arrive ici sans result valide, on quitte
 if result is None:
+    log_error("Aucun résultat valide après toutes les tentatives")
     sys.exit(1)
 
 fund, yqfund, info = result
+log_info(f"Données récupérées avec succès pour {ticker_symbol}")
 
 # Programme principal avec traitement des options
-log_info(f"Traitement des options pour le ticker : {ticker_symbol}")
+log_debug(f"Traitement des options pour le ticker : {ticker_symbol}")
+
 if args.raw:
+    log_info("Option: --raw (affichage données brutes)")
     get_raw_info(info)
 elif args.financials:
+    log_info("Option: --financials")
     get_basic_info(info, ticker_symbol)
     get_financials(info)
 elif args.summary:
+    log_info("Option: --summary")
     get_basic_info(info, ticker_symbol)
     get_business_summary(info)
-elif args.repartition: 
+elif args.repartition:
+    log_info("Option: --repartition")
     get_basic_info(info, ticker_symbol)
     get_repartition(yqfund, ticker_symbol)
-elif args.top_holdings: 
+elif args.top_holdings:
+    log_info("Option: --top-holdings")
     get_basic_info(info, ticker_symbol)
     get_top_holdings(yqfund, ticker_symbol)
 elif args.history:
+    log_info("Option: --history")
     get_basic_info(info, ticker_symbol)
     get_history(fund)
 elif args.rendement:
+    log_info(f"Option: --rendement (période: {args.period}, dividendes: {not args.no_dividends})")
+    if args.benchmark:
+        log_debug(f"Benchmark spécifié: {args.benchmark}")
     get_basic_info(info, ticker_symbol)
     calculate_rendement(fund, 
                        period=args.period, 
                        include_dividends=not args.no_dividends,
                        benchmark_ticker=args.benchmark)
 elif args.obsidian:
+    log_info("Option: --obsidian")
     write_to_obsidian(fund, yqfund, info, ticker_symbol)
 elif args.all:
+    log_info("Option: --all")
     get_basic_info(info, ticker_symbol)
     get_financials(info)
     get_business_summary(info)
