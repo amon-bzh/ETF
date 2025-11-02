@@ -22,6 +22,51 @@ from etf_obsidian import write_to_obsidian
 from etf_utils import search_ticker_variants, display_ticker_choices
 from etf_logging import setup_logging, log_info, log_warning, log_debug, log_error
 
+ticker_with_suffix = re.compile(r"^[A-Z0-9]{3,5}\.[A-Z]{1,2}$")
+
+def resolve_ticker(ticker_symbol):
+    is_complete = bool(ticker_with_suffix.match(ticker_symbol))
+
+    # Ticker potentiellement incomplet (>=4 chars mais pas de suffixe)
+    if not is_complete and len(ticker_symbol) >= 4:
+        log_warning(f"Ticker '{ticker_symbol}' semble incomplet (manque suffixe).")
+        print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' semble incomplet.{Style.RESET_ALL}")
+        print("Souhaites-tu rechercher sur quelles places il est coté ? (o/n)")
+
+        try:
+            response = input().lower()
+            if response not in ('o', 'y'):
+                log_info("Recherche de variantes refusée")
+                return None
+
+            variants = search_ticker_variants(ticker_symbol)
+            if not variants:
+                log_warning(f"Aucune variante trouvée pour {ticker_symbol}")
+                print(f"{Fore.RED}Aucune variante trouvée pour '{ticker_symbol}'.{Style.RESET_ALL}")
+                return None
+
+            selected = display_ticker_choices(variants)
+            if not selected:
+                log_info("Utilisateur a annulé la sélection")
+                return None
+
+            return selected
+
+        except KeyboardInterrupt:
+            log_info("Interruption utilisateur")
+            print("\nAnnulation.")
+            return None
+
+    # Ticker mal formaté
+    elif not is_complete:
+        log_error(f"Ticker '{ticker_symbol}' mal formaté.")
+        print(f"\n{Fore.RED}Le ticker '{ticker_symbol}' n'est pas au bon format.{Style.RESET_ALL}")
+        print("Format attendu: XXXX.YY (ex: VWCE.DE)")
+        return None
+
+    # Ticker déjà complet
+    return ticker_symbol
+
 def main():
     """
     Point d'entrée principal.
@@ -56,9 +101,19 @@ def main():
     log_info(f"Démarrage etfinfo avec ticker: {args.ticker}")
     log_info(f"Lancement de etfinfo.py avec arguments : {sys.argv}")
     
-    return args
+    # Résolution du ticker
+    ticker_symbol = args.ticker
+    resolved = resolve_ticker(ticker_symbol)
+    if resolved is None:
+        return None, None  # temporaire: signale un arrêt propre
+    ticker_symbol = resolved
     
-args = main()
+    return args, ticker_symbol
+    
+args, ticker_symbol = main()
+
+if args is None:
+    sys.exit(1)
 
 # Récupérer le ticker
 ticker_symbol = args.ticker
