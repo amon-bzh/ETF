@@ -119,6 +119,7 @@ def main():
     fund, yqfund, info = result
     log_info(f"Données récupérées pour {ticker_symbol}")
     
+    log_debug(f"Traitement des options pour le ticker : {ticker_symbol}")
     if args.raw:
         log_info("Option: --raw (affichage données brutes)")
         get_raw_info(info)
@@ -285,55 +286,6 @@ if result is None:
 fund, yqfund, info = result
 log_info(f"Données récupérées avec succès pour {ticker_symbol}")
 
-# Programme principal avec traitement des options
-log_debug(f"Traitement des options pour le ticker : {ticker_symbol}")
-
-if args.raw:
-    log_info("Option: --raw (affichage données brutes)")
-    get_raw_info(info)
-elif args.financials:
-    log_info("Option: --financials")
-    get_basic_info(info, ticker_symbol)
-    get_financials(info)
-elif args.summary:
-    log_info("Option: --summary")
-    get_basic_info(info, ticker_symbol)
-    get_business_summary(info)
-elif args.repartition:
-    log_info("Option: --repartition")
-    get_basic_info(info, ticker_symbol)
-    get_repartition(yqfund, ticker_symbol)
-elif args.top_holdings:
-    log_info("Option: --top-holdings")
-    get_basic_info(info, ticker_symbol)
-    get_top_holdings(yqfund, ticker_symbol)
-elif args.history:
-    log_info("Option: --history")
-    get_basic_info(info, ticker_symbol)
-    get_history(fund)
-elif args.rendement:
-    log_info(f"Option: --rendement (période: {args.period}, dividendes: {not args.no_dividends})")
-    if args.benchmark:
-        log_debug(f"Benchmark spécifié: {args.benchmark}")
-    get_basic_info(info, ticker_symbol)
-    calculate_rendement(fund, 
-                       period=args.period, 
-                       include_dividends=not args.no_dividends,
-                       benchmark_ticker=args.benchmark)
-elif args.obsidian:
-    log_info("Option: --obsidian")
-    write_to_obsidian(fund, yqfund, info, ticker_symbol)
-elif args.all:
-    log_info("Option: --all")
-    get_basic_info(info, ticker_symbol)
-    get_financials(info)
-    get_business_summary(info)
-    get_repartition(yqfund, ticker_symbol)
-    get_top_holdings(yqfund, ticker_symbol)
-    get_history(fund)
-else:
-    log_info("Aucune option spécifique fournie, affichage des informations de base")
-    get_basic_info(info, ticker_symbol)
     
 log_info(f"Exécution terminée pour {ticker_symbol}")
 
