@@ -114,7 +114,7 @@ def main():
     if result is None:
         print(f"{Fore.RED}Impossible de récupérer '{ticker_symbol}'.{Style.RESET_ALL}")
         log_error(f"Impossible de récupérer les données pour {ticker_symbol}")
-        return args, ticker_symbol, None, None, None
+        return None, None, None, None, None  # échec propre
 
     fund, yqfund, info = result
     log_info(f"Données récupérées pour {ticker_symbol}")
