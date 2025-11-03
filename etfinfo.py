@@ -24,6 +24,49 @@ from etf_logging import setup_logging, log_info, log_warning, log_debug, log_err
 
 ticker_with_suffix = re.compile(r"^[A-Z0-9]{3,5}\.[A-Z]{1,2}$")
 
+def run_raw(info):
+    get_raw_info(info)
+
+def run_summary(info, ticker_symbol):
+    get_basic_info(info, ticker_symbol)
+    get_business_summary(info)
+
+def run_financials(info, ticker_symbol):
+    get_basic_info(info, ticker_symbol)
+    get_financials(info)
+
+def run_repartition(yqfund, ticker_symbol, info):
+    get_basic_info(info, ticker_symbol)
+    get_repartition(yqfund, ticker_symbol)
+
+def run_top_holdings(yqfund, ticker_symbol, info):
+    get_basic_info(info, ticker_symbol)
+    get_top_holdings(yqfund, ticker_symbol)
+
+def run_history(fund, info, ticker_symbol):
+    get_basic_info(info, ticker_symbol)
+    get_history(fund)
+
+def run_rendement(args, fund, ticker_symbol):
+    get_basic_info(info, ticker_symbol)
+    calculate_rendement(
+        fund,
+        period=args.period,
+        include_dividends=not args.no_dividends,
+        benchmark_ticker=args.benchmark
+    )
+
+def run_obsidian(fund, yqfund, info, ticker_symbol):
+    write_to_obsidian(fund, yqfund, info, ticker_symbol)
+
+def run_all(fund, yqfund, info, ticker_symbol):
+    get_basic_info(info, ticker_symbol)
+    get_financials(info)
+    get_business_summary(info)
+    get_repartition(yqfund, ticker_symbol)
+    get_top_holdings(yqfund, ticker_symbol)
+    get_history(fund)
+
 def resolve_ticker(ticker_symbol):
     is_complete = bool(ticker_with_suffix.match(ticker_symbol))
 
@@ -213,7 +256,7 @@ def main():
 
     # Sinon on tombe sur la logique legacy
     exit_code, ticker_symbol, fund, yqfund, info = legacy_resolve_and_load(args)
-    return exit_code, args, ticker_symbol, fund, yqfund, info
+    # return exit_code, args, ticker_symbol, fund, yqfund, info
     
     log_info(f"Tentative de récupération des données pour {ticker_symbol}")
     result = get_ticker_data(ticker_symbol)
@@ -228,53 +271,26 @@ def main():
     
     log_debug(f"Traitement des options pour le ticker : {ticker_symbol}")
     if args.raw:
-        log_info("Option: --raw (affichage données brutes)")
-        get_raw_info(info)
-    elif args.financials:
-        log_info("Option: --financials")
-        get_basic_info(info, ticker_symbol)
-        get_financials(info)
+        run_raw(info)
     elif args.summary:
-        log_info("Option: --summary")
-        get_basic_info(info, ticker_symbol)
-        get_business_summary(info)
+        run_summary(info, ticker_symbol)
+    elif args.financials:
+        run_financials(info, ticker_symbol)
     elif args.repartition:
-        log_info("Option: --repartition")
-        get_basic_info(info, ticker_symbol)
-        get_repartition(yqfund, ticker_symbol)
+        run_repartition(yqfund, ticker_symbol, info)
     elif args.top_holdings:
-        log_info("Option: --top-holdings")
-        get_basic_info(info, ticker_symbol)
-        get_top_holdings(yqfund, ticker_symbol)
+        run_top_holdings(yqfund, ticker_symbol, info)
     elif args.history:
-        log_info("Option: --history")
-        get_basic_info(info, ticker_symbol)
-        get_history(fund)
+        run_history(fund, info, ticker_symbol)
     elif args.rendement:
-        log_info(f"Option: --rendement (période: {args.period}, dividendes: {not args.no_dividends})")
-        if args.benchmark:
-            log_debug(f"Benchmark spécifié: {args.benchmark}")
-        get_basic_info(info, ticker_symbol)
-        calculate_rendement(fund, 
-                        period=args.period, 
-                        include_dividends=not args.no_dividends,
-                        benchmark_ticker=args.benchmark)
+        run_rendement(args, fund, ticker_symbol)
     elif args.obsidian:
-        log_info("Option: --obsidian")
-        write_to_obsidian(fund, yqfund, info, ticker_symbol)
+        run_obsidian(fund, yqfund, info, ticker_symbol)
     elif args.all:
-        log_info("Option: --all")
-        get_basic_info(info, ticker_symbol)
-        get_financials(info)
-        get_business_summary(info)
-        get_repartition(yqfund, ticker_symbol)
-        get_top_holdings(yqfund, ticker_symbol)
-        get_history(fund)
+        run_all(fund, yqfund, info, ticker_symbol)
     else:
-        log_info("Aucune option spécifique fournie, affichage des informations de base")
         get_basic_info(info, ticker_symbol)
-
-    log_info(f"Exécution terminée pour {ticker_symbol}")
+        log_info(f"Exécution terminée pour {ticker_symbol}")
     
     exit_code, ticker_symbol, fund, yqfund, info = legacy_resolve_and_load(args)
     if exit_code != 0:
