@@ -47,7 +47,7 @@ def run_history(fund, info, ticker_symbol):
     get_basic_info(info, ticker_symbol)
     get_history(fund)
 
-def run_rendement(args, fund, ticker_symbol):
+def run_rendement(args, fund, info, ticker_symbol):
     get_basic_info(info, ticker_symbol)
     calculate_rendement(
         fund,
@@ -207,11 +207,7 @@ def legacy_resolve_and_load(args):
     return 0, ticker_symbol, fund, yqfund, info
 
 def main():
-    """
-    Point d'entrée principal.
-    Étapes suivantes: déplacer progressivement la logique ici et
-    remplacer les sys.exit() internes par des return codes.
-    """
+    
     # Créer le parser d'argument
     parser = argparse.ArgumentParser(
         prog='etfinfo',
@@ -240,35 +236,44 @@ def main():
     log_info(f"Démarrage etfinfo avec ticker: {args.ticker}")
     log_info(f"Lancement de etfinfo.py avec arguments : {sys.argv}")
     
+    # Initialisations
+    result = None
+    
     # Résolution du ticker
     ticker_symbol = args.ticker
     resolved = resolve_ticker(ticker_symbol)
-    
-    if resolved is not None:
+
+    if resolved is None:
+        # Pas de ticker résolu via la logique moderne → tenter le legacy
+        log_info("Résolution moderne échouée, bascule sur legacy_resolve_and_load()")
+        exit_code, ticker_symbol, fund, yqfund, info = legacy_resolve_and_load(args)
+        if exit_code != 0:
+            print(f"{Fore.RED}Impossible de récupérer '{ticker_symbol}'.{Style.RESET_ALL}")
+            log_error(f"Échec legacy avec exit_code={exit_code} pour {ticker_symbol}")
+            return exit_code, None, None, None, None, None
+    else:
+        # Ticker résolu → tenter le chargement direct
         ticker_symbol = resolved
         log_info(f"Tentative de récupération des données pour {ticker_symbol}")
         result = get_ticker_data(ticker_symbol)
 
-        if result is not None:
+        if result is None:
+            # Ticker bien formé mais data indisponible → tenter legacy
+            log_warning("Chargement direct KO, tentative legacy_resolve_and_load()")
+            exit_code, ticker_symbol, fund, yqfund, info = legacy_resolve_and_load(args)
+            if exit_code != 0:
+                print(f"{Fore.RED}Impossible de récupérer '{ticker_symbol}'.{Style.RESET_ALL}")
+                log_error(f"Échec legacy avec exit_code={exit_code} pour {ticker_symbol}")
+                return exit_code, None, None, None, None, None
+        else:
             fund, yqfund, info = result
-            log_info(f"Données récupérées avec succès pour {ticker_symbol}")
-            return 0, args, ticker_symbol, fund, yqfund, info
 
-    # Sinon on tombe sur la logique legacy
-    exit_code, ticker_symbol, fund, yqfund, info = legacy_resolve_and_load(args)
-    # return exit_code, args, ticker_symbol, fund, yqfund, info
-    
-    log_info(f"Tentative de récupération des données pour {ticker_symbol}")
-    result = get_ticker_data(ticker_symbol)
-
-    if result is None:
-        print(f"{Fore.RED}Impossible de récupérer '{ticker_symbol}'.{Style.RESET_ALL}")
-        log_error(f"Impossible de récupérer les données pour {ticker_symbol}")
-        return 1, None, None, None, None, None  # échec propre
+    log_info(f"Données récupérées pour {ticker_symbol}")
 
     fund, yqfund, info = result
     log_info(f"Données récupérées pour {ticker_symbol}")
     
+    # Dispatcher des options
     log_debug(f"Traitement des options pour le ticker : {ticker_symbol}")
     if args.raw:
         run_raw(info)
@@ -283,134 +288,130 @@ def main():
     elif args.history:
         run_history(fund, info, ticker_symbol)
     elif args.rendement:
-        run_rendement(args, fund, ticker_symbol)
+        run_rendement(args, fund, info, ticker_symbol)
     elif args.obsidian:
         run_obsidian(fund, yqfund, info, ticker_symbol)
     elif args.all:
         run_all(fund, yqfund, info, ticker_symbol)
     else:
         get_basic_info(info, ticker_symbol)
-        log_info(f"Exécution terminée pour {ticker_symbol}")
-    
-    exit_code, ticker_symbol, fund, yqfund, info = legacy_resolve_and_load(args)
-    if exit_code != 0:
-        return exit_code, None, None, None, None, None
-    
+    log_info(f"Exécution terminée pour {ticker_symbol}")
+        
     return 0, args, ticker_symbol, fund, yqfund, info
 
-exit_code, args, ticker_symbol, fund, yqfund, info = main()
-sys.exit(exit_code)
+# exit_code, args, ticker_symbol, fund, yqfund, info = main()
+# sys.exit(exit_code)
 
-# Récupérer le ticker
-ticker_symbol = args.ticker
+# # Récupérer le ticker
+# ticker_symbol = args.ticker
 
-# Vérifier le format du ticker
-# Format avec suffixe: 4-5 lettres + point + 1-2 lettres (ex: VWCE.DE, IWDA.AS)
-ticker_with_suffix = re.compile(r"^[A-Z0-9]{3,5}\.[A-Z]{1,2}$")
+# # Vérifier le format du ticker
+# # Format avec suffixe: 4-5 lettres + point + 1-2 lettres (ex: VWCE.DE, IWDA.AS)
+# ticker_with_suffix = re.compile(r"^[A-Z0-9]{3,5}\.[A-Z]{1,2}$")
 
-result = None
+# result = None
 
-# Déterminer si le ticker semble complet
-is_complete_ticker = ticker_with_suffix.match(ticker_symbol)
+# # Déterminer si le ticker semble complet
+# is_complete_ticker = ticker_with_suffix.match(ticker_symbol)
 
-# Si le ticker semble incomplet (4+ lettres sans suffixe)
-if not is_complete_ticker and len(ticker_symbol) >= 4:
-    log_warning(f"Ticker '{ticker_symbol}' semble incomplet (manque le suffixe de place).")
-    print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' semble incomplet.{Style.RESET_ALL}")
-    print("Souhaitez-vous rechercher sur quelles places il est coté ? (o/n)")
+# # Si le ticker semble incomplet (4+ lettres sans suffixe)
+# if not is_complete_ticker and len(ticker_symbol) >= 4:
+#     log_warning(f"Ticker '{ticker_symbol}' semble incomplet (manque le suffixe de place).")
+#     print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' semble incomplet.{Style.RESET_ALL}")
+#     print("Souhaitez-vous rechercher sur quelles places il est coté ? (o/n)")
     
-    try:
-        response = input().lower()
-        if response == 'o' or response == 'y':
-            # Rechercher les variantes
-            log_debug(f"Recherche de variantes pour le ticker : {ticker_symbol}")
-            variants = search_ticker_variants(ticker_symbol)
+#     try:
+#         response = input().lower()
+#         if response == 'o' or response == 'y':
+#             # Rechercher les variantes
+#             log_debug(f"Recherche de variantes pour le ticker : {ticker_symbol}")
+#             variants = search_ticker_variants(ticker_symbol)
             
-            if variants:
-                # Proposer le choix
-                selected_ticker = display_ticker_choices(variants)
-                log_info(f"Utilisateur a sélectionné le ticker alternatif : {selected_ticker}")
+#             if variants:
+#                 # Proposer le choix
+#                 selected_ticker = display_ticker_choices(variants)
+#                 log_info(f"Utilisateur a sélectionné le ticker alternatif : {selected_ticker}")
                 
-                if selected_ticker:
-                    # Réessayer avec le ticker sélectionné
-                    ticker_symbol = selected_ticker
-                    result = get_ticker_data(ticker_symbol)
+#                 if selected_ticker:
+#                     # Réessayer avec le ticker sélectionné
+#                     ticker_symbol = selected_ticker
+#                     result = get_ticker_data(ticker_symbol)
                     
-                    if result is None:
-                        log_error(f"Erreur lors du chargement du ticker sélectionné : {selected_ticker}")
-                        print(f"{Fore.RED}Erreur lors du chargement du ticker sélectionné.{Style.RESET_ALL}")
-                        sys.exit(1)
-                else:
-                    log_info("Utilisateur a annulé la sélection")
-                    sys.exit(0)
-            else:
-                log_warning(f"Aucune variante trouvée pour {ticker_symbol}")
-                print(f"{Fore.RED}Aucune variante trouvée pour '{ticker_symbol}'.{Style.RESET_ALL}")
-                sys.exit(1)
-        else:
-            log_info("Utilisateur a refusé la recherche de variantes")
-            sys.exit(1)
-    except KeyboardInterrupt:
-        log_info("Interruption utilisateur (Ctrl+C)")
-        print("\n\nAnnulation.")
-        sys.exit(0)
-elif not is_complete_ticker:
-    # Ticker mal formaté (trop court ou caractères invalides)
-    log_error(f"Ticker '{ticker_symbol}' mal formaté.")
-    print(f"\n{Fore.RED}Le ticker '{ticker_symbol}' n'est pas au bon format.{Style.RESET_ALL}")
-    print("Format attendu: XXXX.YY (ex: VWCE.DE)")
-    sys.exit(1)
-else:
-    # Le ticker semble bien formaté, tenter de récupérer les données
-    log_info(f"Tentative de récupération des données pour le ticker : {ticker_symbol}")
-    result = get_ticker_data(ticker_symbol)
+#                     if result is None:
+#                         log_error(f"Erreur lors du chargement du ticker sélectionné : {selected_ticker}")
+#                         print(f"{Fore.RED}Erreur lors du chargement du ticker sélectionné.{Style.RESET_ALL}")
+#                         sys.exit(1)
+#                 else:
+#                     log_info("Utilisateur a annulé la sélection")
+#                     sys.exit(0)
+#             else:
+#                 log_warning(f"Aucune variante trouvée pour {ticker_symbol}")
+#                 print(f"{Fore.RED}Aucune variante trouvée pour '{ticker_symbol}'.{Style.RESET_ALL}")
+#                 sys.exit(1)
+#         else:
+#             log_info("Utilisateur a refusé la recherche de variantes")
+#             sys.exit(1)
+#     except KeyboardInterrupt:
+#         log_info("Interruption utilisateur (Ctrl+C)")
+#         print("\n\nAnnulation.")
+#         sys.exit(0)
+# elif not is_complete_ticker:
+#     # Ticker mal formaté (trop court ou caractères invalides)
+#     log_error(f"Ticker '{ticker_symbol}' mal formaté.")
+#     print(f"\n{Fore.RED}Le ticker '{ticker_symbol}' n'est pas au bon format.{Style.RESET_ALL}")
+#     print("Format attendu: XXXX.YY (ex: VWCE.DE)")
+#     sys.exit(1)
+# else:
+#     # Le ticker semble bien formaté, tenter de récupérer les données
+#     log_info(f"Tentative de récupération des données pour le ticker : {ticker_symbol}")
+#     result = get_ticker_data(ticker_symbol)
     
-    # Si le ticker est bien formaté mais n'existe pas
-    if result is None:
-        log_warning(f"Ticker bien formaté mais introuvable: {ticker_symbol}")
-        print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' n'a pas été trouvé.{Style.RESET_ALL}")
-        print("Souhaitez-vous rechercher des variantes ? (o/n)")
+#     # Si le ticker est bien formaté mais n'existe pas
+#     if result is None:
+#         log_warning(f"Ticker bien formaté mais introuvable: {ticker_symbol}")
+#         print(f"\n{Fore.YELLOW}Le ticker '{ticker_symbol}' n'a pas été trouvé.{Style.RESET_ALL}")
+#         print("Souhaitez-vous rechercher des variantes ? (o/n)")
         
-        try:
-            response = input().lower()
-            if response == 'o' or response == 'y':
-                log_debug(f"Recherche de variantes pour le ticker : {ticker_symbol}")
-                variants = search_ticker_variants(ticker_symbol)
+#         try:
+#             response = input().lower()
+#             if response == 'o' or response == 'y':
+#                 log_debug(f"Recherche de variantes pour le ticker : {ticker_symbol}")
+#                 variants = search_ticker_variants(ticker_symbol)
                 
-                if variants:
-                    selected_ticker = display_ticker_choices(variants)
-                    log_info(f"Utilisateur a sélectionné le ticker alternatif : {selected_ticker}")
+#                 if variants:
+#                     selected_ticker = display_ticker_choices(variants)
+#                     log_info(f"Utilisateur a sélectionné le ticker alternatif : {selected_ticker}")
                     
-                    if selected_ticker:
-                        ticker_symbol = selected_ticker
-                        result = get_ticker_data(ticker_symbol)
+#                     if selected_ticker:
+#                         ticker_symbol = selected_ticker
+#                         result = get_ticker_data(ticker_symbol)
                         
-                        if result is None:
-                            log_error(f"Erreur lors du chargement du ticker sélectionné : {selected_ticker}")
-                            print(f"{Fore.RED}Erreur lors du chargement du ticker sélectionné.{Style.RESET_ALL}")
-                            sys.exit(1)
-                    else:
-                        log_info("Utilisateur a annulé la sélection")
-                        sys.exit(0)
-                else:
-                    log_warning(f"Aucune variante trouvée pour {ticker_symbol}")
-                    print(f"{Fore.RED}Aucune variante trouvée pour '{ticker_symbol}'.{Style.RESET_ALL}")
-                    sys.exit(1)
-            else:
-                log_info("Utilisateur a refusé la recherche de variantes")
-                sys.exit(1)
-        except KeyboardInterrupt:
-            log_info("Interruption utilisateur (Ctrl+C)")
-            print("\n\nAnnulation.")
-            sys.exit(0)
+#                         if result is None:
+#                             log_error(f"Erreur lors du chargement du ticker sélectionné : {selected_ticker}")
+#                             print(f"{Fore.RED}Erreur lors du chargement du ticker sélectionné.{Style.RESET_ALL}")
+#                             sys.exit(1)
+#                     else:
+#                         log_info("Utilisateur a annulé la sélection")
+#                         sys.exit(0)
+#                 else:
+#                     log_warning(f"Aucune variante trouvée pour {ticker_symbol}")
+#                     print(f"{Fore.RED}Aucune variante trouvée pour '{ticker_symbol}'.{Style.RESET_ALL}")
+#                     sys.exit(1)
+#             else:
+#                 log_info("Utilisateur a refusé la recherche de variantes")
+#                 sys.exit(1)
+#         except KeyboardInterrupt:
+#             log_info("Interruption utilisateur (Ctrl+C)")
+#             print("\n\nAnnulation.")
+#             sys.exit(0)
 
-# Si on arrive ici sans result valide, on quitte
-if result is None:
-    log_error("Aucun résultat valide après toutes les tentatives")
-    sys.exit(1)
+# # Si on arrive ici sans result valide, on quitte
+# if result is None:
+#     log_error("Aucun résultat valide après toutes les tentatives")
+#     sys.exit(1)
 
-fund, yqfund, info = result
-log_info(f"Données récupérées avec succès pour {ticker_symbol}")
+# fund, yqfund, info = result
+# log_info(f"Données récupérées avec succès pour {ticker_symbol}")
 
 
 if __name__ == "__main__":
