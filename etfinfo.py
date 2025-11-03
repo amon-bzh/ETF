@@ -69,7 +69,14 @@ def run_all(fund, yqfund, info, ticker_symbol):
     get_top_holdings(yqfund, ticker_symbol)
     get_history(fund)
 
-def resolve_ticker(ticker_symbol):
+def resolve_ticker(ticker_symbol, interactive=True):
+    """
+    Résout un ticker incomplet en proposant des variantes si interactive=True.
+    Retourne :
+      - ticker résolu (str)
+      - None si pas trouvé ou choix utilisateur 'n'
+    Ne charge pas les données, juste la résolution du symbole.
+    """
     is_complete = bool(ticker_with_suffix.match(ticker_symbol))
 
     # Ticker potentiellement incomplet (>=4 chars mais pas de suffixe)
@@ -79,6 +86,10 @@ def resolve_ticker(ticker_symbol):
         print("Souhaites-tu rechercher sur quelles places il est coté ? (o/n)")
 
         try:
+            if not interactive:
+                log_info("Pas d'UI -> pas de choix possible")
+                return None  # pas d'UI → pas de choix possible
+
             response = input().lower()
             if response not in ('o', 'y'):
                 log_info("Recherche de variantes refusée")
@@ -243,7 +254,7 @@ def main():
     
     # Résolution du ticker
     ticker_symbol = args.ticker
-    resolved = resolve_ticker(ticker_symbol)
+    resolved = resolve_ticker(ticker_symbol, interactive=True)
 
     if resolved is None:
         if USE_LEGACY:
