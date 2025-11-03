@@ -252,7 +252,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             
             # 1. Généralités
             file.write(f"## Généralités\n\n")
-            file.write(f"- **Symbole** : `{symbol}`\n")
+            file.write(f"- **Symbole** : {symbol}\n")
             file.write(f"- **Nom complet** : {longName}\n")
             file.write(f"- **Nom court** : {shortName}\n")
             file.write(f"- **Fund family** : {fundFamily}\n")
