@@ -348,7 +348,8 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             file.write(f"## Notes personnelles\n\n")
             file.write(f"*Ajoutez ici vos notes, analyses et réflexions sur cet ETF...*\n\n")
         
-        print(f"{Fore.GREEN}✓ Fiche Obsidian créée: {filename}{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}✓ Fiche Obsidian créée : {Style.RESET_ALL}{Fore.GREEN}{longName}.md{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}📁 Emplacement : {Style.RESET_ALL}{Fore.GREEN}{directory_name}{Style.RESET_ALL}")
     
     except Exception as e:
         print(f"{Fore.RED}✗ Erreur lors de la création de la fiche Obsidian: {e}{Style.RESET_ALL}")
