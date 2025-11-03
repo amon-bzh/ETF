@@ -22,6 +22,8 @@ from etf_obsidian import write_to_obsidian
 from etf_utils import search_ticker_variants, display_ticker_choices
 from etf_logging import setup_logging, log_info, log_warning, log_debug, log_error
 
+USE_LEGACY = True  # désactiver plus tard pour tester la nouvelle logique
+
 ticker_with_suffix = re.compile(r"^[A-Z0-9]{3,5}\.[A-Z]{1,2}$")
 
 def run_raw(info):
@@ -244,13 +246,13 @@ def main():
     resolved = resolve_ticker(ticker_symbol)
 
     if resolved is None:
-        # Pas de ticker résolu via la logique moderne → tenter le legacy
-        log_info("Résolution moderne échouée, bascule sur legacy_resolve_and_load()")
-        exit_code, ticker_symbol, fund, yqfund, info = legacy_resolve_and_load(args)
-        if exit_code != 0:
-            print(f"{Fore.RED}Impossible de récupérer '{ticker_symbol}'.{Style.RESET_ALL}")
-            log_error(f"Échec legacy avec exit_code={exit_code} pour {ticker_symbol}")
-            return exit_code, None, None, None, None, None
+        if USE_LEGACY:
+            log_info("Chargement direct KO, tentative legacy_resolve_and_load()")
+            exit_code, ticker_symbol, fund, yqfund, info = legacy_resolve_and_load(args)
+            if exit_code != 0:
+                return exit_code, None, None, None, None, None
+        else:
+            return 1, None, None, None, None, None           
     else:
         # Ticker résolu → tenter le chargement direct
         ticker_symbol = resolved
@@ -270,7 +272,7 @@ def main():
 
     log_info(f"Données récupérées pour {ticker_symbol}")
 
-    fund, yqfund, info = result
+    # fund, yqfund, info = result
     log_info(f"Données récupérées pour {ticker_symbol}")
     
     # Dispatcher des options
