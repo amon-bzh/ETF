@@ -220,7 +220,29 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         directory_name = obsidian_directory + "/8 ETF"
         os.makedirs(directory_name, exist_ok=True)
         filename = f"{directory_name}/{longName}.md"
-        
+
+        # Vérification si le fichier existe déjà
+        if os.path.exists(filename):
+            # Lire la première ligne contenant la date
+            with open(filename, "r", encoding="utf-8") as f:
+                content = f.read()
+                date_line = None
+                for line in content.splitlines():
+                    if "**Fiche créée le" in line:
+                        date_line = line.strip()
+                        break
+
+            if date_line:
+                print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF.{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}{date_line}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF, mais la date de création n'a pas été trouvée.{Style.RESET_ALL}")
+
+            reponse = input("Souhaites tu l'écraser ? (o/n) ").strip().lower()
+            if reponse != 'o':
+                print(f"{Fore.CYAN}Opération annulée. Aucun fichier écrasé.{Style.RESET_ALL}")
+                return
+
         with open(filename, "w", encoding='utf-8') as file:
             # En-tête
             file.write(f"#ETF #{symbol_as_tag}\n\n")
