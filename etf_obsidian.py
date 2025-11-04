@@ -17,7 +17,7 @@ from etf_markdown import (
     write_holdings_section,
     write_notes_section
 )
-from etf_data import compute_ytd_return
+from etf_data import compute_ytd_return, build_dividend_info, get_sector_weights, get_top_holdings
 
 def print_note_dates(created, modified):
     # Align labels so that the ':' are vertically aligned.
@@ -45,36 +45,6 @@ def print_note_dates(created, modified):
 # Helpers: data fetching & compute
 # ----------------------------
 
-def get_sector_weights(yqfund, ticker_symbol):
-    try:
-        repartition = yqfund.fund_sector_weightings
-        if isinstance(repartition, dict) and ticker_symbol in repartition:
-            repartition = repartition[ticker_symbol]
-        if hasattr(repartition, 'map'):
-            repartition_fmt = repartition.map(
-                lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
-            )
-        else:
-            repartition_fmt = repartition
-        return repartition_fmt, None
-    except Exception as e:
-        return "Non disponible", str(e)
-
-
-def get_top_holdings(yqfund, ticker_symbol):
-    try:
-        top_holdings = yqfund.fund_top_holdings
-        if isinstance(top_holdings, dict) and ticker_symbol in top_holdings:
-            top_holdings = top_holdings[ticker_symbol]
-        if hasattr(top_holdings, 'map'):
-            top_holdings_fmt = top_holdings.map(
-                lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
-            )
-        else:
-            top_holdings_fmt = top_holdings
-        return top_holdings_fmt, None
-    except Exception as e:
-        return "Non disponible", str(e)
 
 
 def compute_performance_and_stats(fund):
@@ -158,23 +128,6 @@ def compute_performance_and_stats(fund):
         return rendement_data, stats_data
     except Exception:
         return {}, {}
-
-
-def build_dividend_info(fund, dividendYield):
-    try:
-        dividends = fund.dividends
-        if hasattr(dividends, 'empty') and not dividends.empty and len(dividends) > 0:
-            dernier_dividende = dividends.iloc[-1]
-            date_dernier_div = dividends.index[-1].strftime('%d/%m/%Y')
-            return {
-                'yield': dividendYield,
-                'dernier_montant': dernier_dividende,
-                'date_dernier': date_dernier_div,
-                'nb_distributions': len(dividends)
-            }
-    except Exception:
-        pass
-    return {}
 
 
 def write_to_obsidian(fund, yqfund, info, ticker_symbol):
