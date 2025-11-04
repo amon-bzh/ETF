@@ -17,6 +17,7 @@ from etf_markdown import (
     write_holdings_section,
     write_notes_section
 )
+from etf_data import compute_ytd_return
 
 def print_note_dates(created, modified):
     # Align labels so that the ':' are vertically aligned.
@@ -157,19 +158,6 @@ def compute_performance_and_stats(fund):
         return rendement_data, stats_data
     except Exception:
         return {}, {}
-
-
-def compute_ytd_return(fund):
-    try:
-        start_of_year = datetime(datetime.now().year, 1, 1).strftime('%Y-%m-%d')
-        hist_ytd = fund.history(start=start_of_year)
-        if len(hist_ytd) > 1:
-            prix_debut_ytd = hist_ytd['Close'].iloc[0]
-            prix_fin_ytd = hist_ytd['Close'].iloc[-1]
-            return ((prix_fin_ytd - prix_debut_ytd) / prix_debut_ytd) * 100
-    except Exception:
-        pass
-    return None
 
 
 def build_dividend_info(fund, dividendYield):
