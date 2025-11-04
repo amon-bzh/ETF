@@ -17,7 +17,7 @@ from etf_markdown import (
     write_holdings_section,
     write_notes_section
 )
-from etf_data import compute_ytd_return, build_dividend_info, get_sector_weights, get_top_holdings
+from etf_data import compute_ytd_return, build_dividend_info, get_sector_weights, get_top_holdings, compute_performance_and_stats
 
 def print_note_dates(created, modified):
     # Align labels so that the ':' are vertically aligned.
@@ -44,90 +44,6 @@ def print_note_dates(created, modified):
 # ----------------------------
 # Helpers: data fetching & compute
 # ----------------------------
-
-
-
-def compute_performance_and_stats(fund):
-    rendement_data = {}
-    stats_data = {}
-    try:
-        hist_1y = fund.history(period='1y')
-        if len(hist_1y) <= 1:
-            return {}, {}
-        prix_debut = hist_1y['Close'].iloc[0]
-        prix_fin = hist_1y['Close'].iloc[-1]
-        rendement_simple = ((prix_fin - prix_debut) / prix_debut) * 100
-
-        dividends_1y = fund.dividends[hist_1y.index[0]:hist_1y.index[-1]]
-        total_dividends = dividends_1y.sum() if hasattr(dividends_1y, 'empty') and not dividends_1y.empty else 0
-        rendement_total = ((prix_fin + total_dividends - prix_debut) / prix_debut) * 100
-
-        returns = hist_1y['Close'].pct_change().dropna()
-        volatilite = returns.std() * np.sqrt(252) * 100
-
-        cumulative = (1 + returns).cumprod()
-        running_max = cumulative.expanding().max()
-        drawdown = (cumulative - running_max) / running_max
-        max_drawdown = drawdown.min() * 100
-        max_dd_date = drawdown.idxmin().strftime('%d/%m/%Y')
-
-        prix_min = hist_1y['Close'].min()
-        prix_max = hist_1y['Close'].max()
-        prix_moyen = hist_1y['Close'].mean()
-
-        jours_positifs = (returns > 0).sum()
-        jours_negatifs = (returns < 0).sum()
-        taux_reussite = jours_positifs / (jours_positifs + jours_negatifs) * 100 if (jours_positifs + jours_negatifs) > 0 else 0
-
-        meilleur_jour = returns.max() * 100
-        pire_jour = returns.min() * 100
-
-        sharpe_ratio = rendement_total / volatilite if volatilite > 0 else 0
-
-        negative_returns = returns[returns < 0]
-        sortino_ratio = 0
-        if len(negative_returns) > 0:
-            downside_vol = negative_returns.std() * np.sqrt(252) * 100
-            if downside_vol > 0:
-                sortino_ratio = rendement_total / downside_vol
-
-        calmar_ratio = rendement_total / abs(max_drawdown) if abs(max_drawdown) > 0 else 0
-
-        sharpe_emoji, sharpe_alert = get_ratio_emoji(sharpe_ratio, 'sharpe')
-        sortino_emoji, sortino_alert = get_ratio_emoji(sortino_ratio, 'sortino')
-
-        rendement_data = {
-            'rendement_simple': rendement_simple,
-            'rendement_total': rendement_total,
-            'volatilite': volatilite,
-            'max_drawdown': max_drawdown,
-            'max_dd_date': max_dd_date,
-            'sharpe': sharpe_ratio,
-            'sharpe_emoji': sharpe_emoji,
-            'sharpe_alert': sharpe_alert,
-            'sortino': sortino_ratio,
-            'sortino_emoji': sortino_emoji,
-            'sortino_alert': sortino_alert,
-            'calmar': calmar_ratio,
-            'date_calcul': datetime.now().strftime('%d/%m/%Y'),
-            'periode_debut': hist_1y.index[0].strftime('%d/%m/%Y'),
-            'periode_fin': hist_1y.index[-1].strftime('%d/%m/%Y')
-        }
-
-        stats_data = {
-            'prix_min': prix_min,
-            'prix_max': prix_max,
-            'prix_moyen': prix_moyen,
-            'amplitude': ((prix_max - prix_min) / prix_min * 100) if prix_min else 0,
-            'jours_positifs': jours_positifs,
-            'jours_negatifs': jours_negatifs,
-            'taux_reussite': taux_reussite,
-            'meilleur_jour': meilleur_jour,
-            'pire_jour': pire_jour
-        }
-        return rendement_data, stats_data
-    except Exception:
-        return {}, {}
 
 
 def write_to_obsidian(fund, yqfund, info, ticker_symbol):
