@@ -137,3 +137,18 @@ def write_sector_allocation_section(file, repartition_fmt):
         file.write(f"{repartition_fmt}\n\n")
     else:
         file.write(f"{repartition_fmt}\n\n")
+        
+def write_holdings_section(file, top_holdings_fmt):
+    """
+    Écrit la section 'Principales positions' dans la fiche Obsidian.
+    Déplacé depuis etf_obsidian.py dans le cadre du refactoring.
+    """
+    file.write("## Principales positions\n\n")
+    if hasattr(top_holdings_fmt, 'to_string'):
+        file.write("```\n")
+        file.write(top_holdings_fmt.to_string(index=True))
+        file.write("\n```\n\n")
+    elif top_holdings_fmt != "Non disponible":
+        file.write(f"{top_holdings_fmt}\n\n")
+    else:
+        file.write(f"{top_holdings_fmt}\n\n")

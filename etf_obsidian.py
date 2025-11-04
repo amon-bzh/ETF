@@ -13,7 +13,8 @@ from etf_markdown import (
     write_description_section,
     write_performance_section,
     write_dividends_section,
-    write_sector_allocation_section
+    write_sector_allocation_section,
+    write_holdings_section
 )
 
 def print_note_dates(created, modified):
@@ -345,15 +346,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             write_sector_allocation_section(file, repartition_fmt)
             
             # 7. Principales positions
-            file.write(f"## Principales positions\n\n")
-            if hasattr(top_holdings_fmt, 'to_string'):
-                file.write("```\n")
-                file.write(top_holdings_fmt.to_string(index=True))
-                file.write("\n```\n\n")
-            elif top_holdings_fmt != "Non disponible":
-                file.write(f"{top_holdings_fmt}\n\n")
-            else:
-                file.write(f"{top_holdings_fmt}\n\n")
+            write_holdings_section(file, top_holdings_fmt)
             
             # 8. Notes personnelles
             file.write(f"## Notes personnelles\n\n")
