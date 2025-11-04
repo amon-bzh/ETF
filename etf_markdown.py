@@ -152,3 +152,11 @@ def write_holdings_section(file, top_holdings_fmt):
         file.write(f"{top_holdings_fmt}\n\n")
     else:
         file.write(f"{top_holdings_fmt}\n\n")
+        
+def write_notes_section(file):
+    """
+    Écrit la section 'Notes personnelles' dans la fiche Obsidian.
+    Déplacé depuis etf_obsidian.py dans le cadre du refactoring.
+    """
+    file.write("## Notes personnelles\n\n")
+    file.write("*Ajoutez ici vos notes, analyses et réflexions sur cet ETF...*\n\n")

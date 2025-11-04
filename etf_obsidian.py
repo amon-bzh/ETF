@@ -14,7 +14,8 @@ from etf_markdown import (
     write_performance_section,
     write_dividends_section,
     write_sector_allocation_section,
-    write_holdings_section
+    write_holdings_section,
+    write_notes_section
 )
 
 def print_note_dates(created, modified):
@@ -349,8 +350,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             write_holdings_section(file, top_holdings_fmt)
             
             # 8. Notes personnelles
-            file.write(f"## Notes personnelles\n\n")
-            file.write(f"*Ajoutez ici vos notes, analyses et réflexions sur cet ETF...*\n\n")
+            write_notes_section(file)
         
         print(f"{Fore.WHITE}✓ Fiche Obsidian créée : {Style.RESET_ALL}{Fore.GREEN}{longName}.md{Style.RESET_ALL}")
         print(f"{Fore.WHITE}📁 Emplacement : {Style.RESET_ALL}{Fore.GREEN}{directory_name}{Style.RESET_ALL}")
