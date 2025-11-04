@@ -112,4 +112,28 @@ def write_performance_section(file, rendement_data, stats_data, ytd_rendement, c
     else:
         file.write("Données de performance non disponibles.\n\n")
         
-        
+def write_dividends_section(file, dividend_info):
+    """
+    Écrit la section 'Dividendes' dans la fiche Obsidian.
+    Déplacé depuis etf_obsidian.py dans le cadre du refactoring.
+    """
+    file.write("## Dividendes\n\n")
+    if dividend_info.get('yield'):
+        file.write(f"- **Yield actuel** : {dividend_info['yield']:.2%}\n".replace('.', ','))
+    file.write(f"- **Dernier dividende** : {dividend_info['dernier_montant']:.4f} le {dividend_info['date_dernier']}\n".replace('.', ','))
+    file.write(f"- **Nombre de distributions** : {dividend_info['nb_distributions']}\n\n")
+
+def write_sector_allocation_section(file, repartition_fmt):
+    """
+    Écrit la section 'Répartition sectorielle' dans la fiche Obsidian.
+    Déplacé depuis etf_obsidian.py dans le cadre du refactoring.
+    """
+    file.write("## Répartition sectorielle\n\n")
+    if hasattr(repartition_fmt, 'to_string'):
+        file.write("```\n")
+        file.write(repartition_fmt.to_string(index=True))
+        file.write("\n```\n\n")
+    elif repartition_fmt != "Non disponible":
+        file.write(f"{repartition_fmt}\n\n")
+    else:
+        file.write(f"{repartition_fmt}\n\n")

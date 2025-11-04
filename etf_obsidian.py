@@ -11,7 +11,9 @@ from etf_markdown import (
     write_general_section,
     write_financial_section,
     write_description_section,
-    write_performance_section
+    write_performance_section,
+    write_dividends_section,
+    write_sector_allocation_section
 )
 
 def print_note_dates(created, modified):
@@ -337,22 +339,10 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             
             # 5. Dividendes
             if dividend_info:
-                file.write(f"## Dividendes\n\n")
-                if dividend_info.get('yield'):
-                    file.write(f"- **Yield actuel** : {dividend_info['yield']:.2%}\n".replace('.', ','))
-                file.write(f"- **Dernier dividende** : {dividend_info['dernier_montant']:.4f} le {dividend_info['date_dernier']}\n".replace('.', ','))
-                file.write(f"- **Nombre de distributions** : {dividend_info['nb_distributions']}\n\n")
+                write_dividends_section(file, dividend_info)
             
             # 6. Répartition sectorielle
-            file.write(f"## Répartition sectorielle\n\n")
-            if hasattr(repartition_fmt, 'to_string'):
-                file.write("```\n")
-                file.write(repartition_fmt.to_string(index=True))
-                file.write("\n```\n\n")
-            elif repartition_fmt != "Non disponible":
-                file.write(f"{repartition_fmt}\n\n")
-            else:
-                file.write(f"{repartition_fmt}\n\n")
+            write_sector_allocation_section(file, repartition_fmt)
             
             # 7. Principales positions
             file.write(f"## Principales positions\n\n")
