@@ -1,3 +1,23 @@
+def print_note_dates(created, modified):
+    # Align labels so that the ':' are vertically aligned.
+    created_text = "Fiche créée le"
+    modified_text = "Dernière mise à jour"
+
+    # Compute padding so that both labels have the colon at the same column
+    colon_col = len(modified_text)
+    pad = max(0, colon_col - len(created_text))
+
+    created_label = (" " * pad) + created_text + ":"
+    modified_label = modified_text + ":"
+
+    # Print creation date
+    print(f"{Fore.YELLOW}{created_label} {created}{Style.RESET_ALL}")
+
+    # Print modification date, bold if different
+    if created != modified:
+        print(f"{Fore.YELLOW}{modified_label} {Style.BRIGHT}{modified}{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.YELLOW}{modified_label} {modified}{Style.RESET_ALL}")
 #!/usr/bin/python3
 # etf_obsidian.py - Génération des fiches Obsidian pour les ETF
 
@@ -227,32 +247,25 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             with open(filename, "r", encoding="utf-8") as f:
                 content = f.read()
                 date_line = None
+                mod_line = None
                 for line in content.splitlines():
                     if "**Fiche créée le" in line:
                         date_line = line.strip()
-                        break
-
-            if date_line:
-                print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF.{Style.RESET_ALL}")
-                print(f"{Fore.YELLOW}{date_line}{Style.RESET_ALL}")
-
-                # Recherche de la date de dernière mise à jour
-                mod_line = None
-                for line in content.splitlines():
                     if "**Dernière mise à jour" in line:
                         mod_line = line.strip()
-                        break
-
-                if mod_line:
-                    creation_date = date_line.replace("**Fiche créée le :**", "").strip()
-                    mod_date = mod_line.replace("**Dernière mise à jour :**", "").strip()
-
-                    if creation_date != mod_date:
-                        print(f"{Fore.YELLOW}**Modification :** {mod_date}{Style.RESET_ALL}")
-                    else:
-                        print(f"{Fore.YELLOW}{mod_line}{Style.RESET_ALL}")
-            else:
-                print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF, mais la date de création n'a pas été trouvée.{Style.RESET_ALL}")
+                # Affichage avec print_note_dates
+                if date_line and mod_line:
+                    print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF.{Style.RESET_ALL}")
+                    created = date_line.replace("**Fiche créée le :**", "").strip()
+                    modified = mod_line.replace("**Dernière mise à jour :**", "").strip()
+                    print_note_dates(created, modified)
+                elif date_line:
+                    print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF.{Style.RESET_ALL}")
+                    created = date_line.replace("**Fiche créée le :**", "").strip()
+                    modified = created
+                    print_note_dates(created, modified)
+                else:
+                    print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF, mais la date de création n'a pas été trouvée.{Style.RESET_ALL}")
 
             reponse = input("Souhaites tu l'écraser ? (o/n) ").strip().lower()
             if reponse != 'o':
