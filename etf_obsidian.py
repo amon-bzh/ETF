@@ -235,6 +235,22 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             if date_line:
                 print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF.{Style.RESET_ALL}")
                 print(f"{Fore.YELLOW}{date_line}{Style.RESET_ALL}")
+
+                # Recherche de la date de dernière mise à jour
+                mod_line = None
+                for line in content.splitlines():
+                    if "**Dernière mise à jour" in line:
+                        mod_line = line.strip()
+                        break
+
+                if mod_line:
+                    creation_date = date_line.replace("**Fiche créée le :**", "").strip()
+                    mod_date = mod_line.replace("**Dernière mise à jour :**", "").strip()
+
+                    if creation_date != mod_date:
+                        print(f"{Fore.YELLOW}**Modification :** {mod_date}{Style.RESET_ALL}")
+                    else:
+                        print(f"{Fore.YELLOW}{mod_line}{Style.RESET_ALL}")
             else:
                 print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF, mais la date de création n'a pas été trouvée.{Style.RESET_ALL}")
 
