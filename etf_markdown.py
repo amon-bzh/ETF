@@ -60,3 +60,56 @@ def write_description_section(file, businessSummary):
     """
     file.write("## Description\n\n")
     file.write(f"{businessSummary}\n\n")
+    
+def write_performance_section(file, rendement_data, stats_data, ytd_rendement, currency):
+    """
+    Écrit la section 'Performance (sur 1 an)' dans la fiche Obsidian.
+    Déplacé depuis etf_obsidian.py dans le cadre du refactoring.
+    """
+    file.write("## Performance (sur 1 an)\n\n")
+    if rendement_data:
+        file.write(f"**Période analysée :** {rendement_data['periode_debut']} → {rendement_data['periode_fin']}\n\n")
+        file.write("### Rendements\n\n")
+        file.write(f"- **Rendement prix** : {rendement_data['rendement_simple']:+.2f}%\n".replace('.', ','))
+        file.write(f"- **Rendement total (avec dividendes)** : {rendement_data['rendement_total']:+.2f}%\n".replace('.', ','))
+        if ytd_rendement is not None:
+            file.write(f"- **YTD (année en cours)** : {ytd_rendement:+.2f}%\n".replace('.', ','))
+
+        file.write("\n### Risque\n\n")
+        file.write(f"- **Volatilité annuelle** : {rendement_data['volatilite']:.2f}%\n".replace('.', ','))
+        file.write(f"- **Drawdown maximum** : {rendement_data['max_drawdown']:.2f}% (le {rendement_data['max_dd_date']})\n".replace('.', ','))
+
+        file.write("\n### Ratios (calculés sur 1 an)\n\n")
+
+        sharpe_line = f"- **Ratio de Sharpe** : {rendement_data['sharpe']:.2f}".replace('.', ',')
+        sharpe_line += f" {rendement_data['sharpe_emoji']}"
+        if rendement_data['sharpe_alert']:
+            sharpe_line += f" *{rendement_data['sharpe_alert']}*"
+        file.write(sharpe_line + "\n")
+
+        sortino_line = f"- **Ratio de Sortino** : {rendement_data['sortino']:.2f}".replace('.', ',')
+        sortino_line += f" {rendement_data['sortino_emoji']}"
+        if rendement_data['sortino_alert']:
+            sortino_line += f" *{rendement_data['sortino_alert']}*"
+        file.write(sortino_line + "\n")
+
+        file.write(f"- **Ratio de Calmar** : {rendement_data['calmar']:.2f}\n".replace('.', ','))
+
+        if stats_data:
+            file.write("\n### Statistiques de prix\n\n")
+            file.write(f"- **Prix minimum** : {stats_data['prix_min']:.2f} {currency}\n".replace('.', ','))
+            file.write(f"- **Prix maximum** : {stats_data['prix_max']:.2f} {currency}\n".replace('.', ','))
+            file.write(f"- **Prix moyen** : {stats_data['prix_moyen']:.2f} {currency}\n".replace('.', ','))
+            file.write(f"- **Amplitude** : {stats_data['amplitude']:.2f}%\n".replace('.', ','))
+
+            file.write("\n### Analyse des mouvements\n\n")
+            file.write(f"- **Jours positifs** : {stats_data['jours_positifs']} ({stats_data['taux_reussite']:.1f}%)\n".replace('.', ','))
+            file.write(f"- **Jours négatifs** : {stats_data['jours_negatifs']} ({100-stats_data['taux_reussite']:.1f}%)\n".replace('.', ','))
+            file.write(f"- **Meilleur jour** : {stats_data['meilleur_jour']:+.2f}%\n".replace('.', ','))
+            file.write(f"- **Pire jour** : {stats_data['pire_jour']:+.2f}%\n".replace('.', ','))
+
+        file.write(f"\n*Calcul effectué le {rendement_data['date_calcul']}*\n\n")
+    else:
+        file.write("Données de performance non disponibles.\n\n")
+        
+        
