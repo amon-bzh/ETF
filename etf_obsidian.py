@@ -6,7 +6,7 @@ import numpy as np
 from datetime import datetime
 from colorama import Fore, Style
 from etf_utils import detect_indice, get_emetteur_url, get_ratio_emoji, format_date_fr
-from etf_markdown import write_header, write_general_section, write_financial_section
+from etf_markdown import write_header, write_general_section, write_financial_section, write_description_section
 
 
 def print_note_dates(created, modified):
@@ -325,9 +325,8 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             write_financial_section(file, financial_data)
             
             # 3. Description
-            file.write(f"## Description\n\n")
-            file.write(f"{businessSummary}\n\n")
-            
+            write_description_section(file, businessSummary)
+                            
             # 4. Performance
             file.write(f"## Performance (sur 1 an)\n\n")
             if rendement_data:

@@ -52,3 +52,11 @@ def write_financial_section(file, data):
     if data['expenseRatio'] is not None:
         file.write(f"- **Frais de gestion (TER)** : {data['expenseRatio']:.2%}\n".replace('.', ','))
     file.write("\n")
+    
+def write_description_section(file, businessSummary):
+    """
+    Écrit la section 'Description' dans la fiche Obsidian.
+    Déplacé depuis etf_obsidian.py dans le cadre du refactoring.
+    """
+    file.write("## Description\n\n")
+    file.write(f"{businessSummary}\n\n")
