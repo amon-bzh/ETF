@@ -242,11 +242,21 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             if reponse != 'o':
                 print(f"{Fore.CYAN}Opération annulée. Aucun fichier écrasé.{Style.RESET_ALL}")
                 return
+            # Extraire la date de création existante si présente
+            original_creation_date = None
+            for line in content.splitlines():
+                if "**Fiche créée le" in line:
+                    original_creation_date = line.replace("**Fiche créée le :**","").strip()
+                    break
+            if not original_creation_date:
+                original_creation_date = date_creation
+        else:
+            original_creation_date = date_creation
 
         with open(filename, "w", encoding='utf-8') as file:
             # En-tête
             file.write(f"#ETF #{symbol_as_tag}\n\n")
-            file.write(f"**Fiche créée le :** {date_creation}\n")
+            file.write(f"**Fiche créée le :** {original_creation_date}\n")
             file.write(f"**Dernière mise à jour :** {date_creation}\n\n")
             file.write("---\n\n")
             
