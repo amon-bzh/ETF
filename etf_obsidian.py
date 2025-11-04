@@ -1,3 +1,14 @@
+#!/usr/bin/python3
+# etf_obsidian.py - Génération des fiches Obsidian pour les ETF
+
+import os
+import numpy as np
+from datetime import datetime
+from colorama import Fore, Style
+from etf_utils import detect_indice, get_emetteur_url, get_ratio_emoji, format_date_fr
+from etf_markdown import write_header, write_general_section, write_financial_section
+
+
 def print_note_dates(created, modified):
     # Align labels so that the ':' are vertically aligned.
     created_text = "Fiche créée le"
@@ -18,14 +29,7 @@ def print_note_dates(created, modified):
         print(f"{Fore.YELLOW}{modified_label} {Style.BRIGHT}{modified}{Style.RESET_ALL}")
     else:
         print(f"{Fore.YELLOW}{modified_label} {modified}{Style.RESET_ALL}")
-#!/usr/bin/python3
-# etf_obsidian.py - Génération des fiches Obsidian pour les ETF
 
-import os
-import numpy as np
-from datetime import datetime
-from colorama import Fore, Style
-from etf_utils import detect_indice, get_emetteur_url, get_ratio_emoji, format_date_fr
 
 def write_to_obsidian(fund, yqfund, info, ticker_symbol):
     """
@@ -284,45 +288,41 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
 
         with open(filename, "w", encoding='utf-8') as file:
             # En-tête
-            file.write(f"#ETF #{symbol_as_tag}\n\n")
-            file.write(f"**Fiche créée le :** {original_creation_date}\n")
-            file.write(f"**Dernière mise à jour :** {date_creation}\n\n")
-            file.write("---\n\n")
+            write_header(file, symbol_as_tag, original_creation_date, date_creation)
             
             # 1. Généralités
-            file.write(f"## Généralités\n\n")
-            file.write(f"- **Symbole** : {symbol}\n")
-            file.write(f"- **Nom complet** : {longName}\n")
-            file.write(f"- **Nom court** : {shortName}\n")
-            file.write(f"- **Fund family** : {fundFamily}\n")
-            file.write(f"- **Exchange** : {exchange}\n")
-            file.write(f"- **Devise** : {currency}\n")
-            file.write(f"- **Quote type** : {quoteType}\n")
-            file.write(f"- **Type** : {etf_type}\n")
-            file.write(f"- **Indice répliqué** : {indice_replique}\n")
-            file.write(f"- **ISIN** : {isin}\n")
-            file.write(f"- **Date de création ETF** : {firstTradeDate}\n")
-            file.write(f"- **Site web** : {site_web}\n\n")
+            general_data = {
+                "symbol": symbol,
+                "longName": longName,
+                "shortName": shortName,
+                "fundFamily": fundFamily,
+                "exchange": exchange,
+                "currency": currency,
+                "quoteType": quoteType,
+                "etf_type": etf_type,
+                "indice_replique": indice_replique,
+                "isin": isin,
+                "firstTradeDate": firstTradeDate,
+                "site_web": site_web
+            }
+
+            write_general_section(file, general_data)
             
             # 2. Données financières
-            file.write(f"## Données financières\n\n")
-            if currentPrice != 'N/A':
-                file.write(f"- **Prix actuel** : {currentPrice:.2f} {currency}\n".replace('.', ','))
-            if previousClose != 'N/A':
-                file.write(f"- **Clôture précédente** : {previousClose:.2f} {currency}\n".replace('.', ','))
-            if fiftyTwoWeekLow != 'N/A' and fiftyTwoWeekHigh != 'N/A':
-                file.write(f"- **Range 52 semaines** : {fiftyTwoWeekLow:.2f} - {fiftyTwoWeekHigh:.2f}\n".replace('.', ','))
-            if fiftyDayAverage != 'N/A':
-                file.write(f"- **Moyenne mobile 50j** : {fiftyDayAverage:.2f}\n".replace('.', ','))
-            if twoHundredDayAverage != 'N/A':
-                file.write(f"- **Moyenne mobile 200j** : {twoHundredDayAverage:.2f}\n".replace('.', ','))
-            if volume != 'N/A':
-                file.write(f"- **Volume** : {volume:,}\n".replace(',', ' '))
-            if totalAssets != 'N/A':
-                file.write(f"- **Actifs sous gestion** : {totalAssets:,.0f} {currency}\n".replace(',', ' '))
-            if expenseRatio is not None:
-                file.write(f"- **Frais de gestion (TER)** : {expenseRatio:.2%}\n".replace('.', ','))
-            file.write("\n")
+            financial_data = {
+                "currentPrice": currentPrice,
+                "previousClose": previousClose,
+                "fiftyTwoWeekLow": fiftyTwoWeekLow,
+                "fiftyTwoWeekHigh": fiftyTwoWeekHigh,
+                "fiftyDayAverage": fiftyDayAverage,
+                "twoHundredDayAverage": twoHundredDayAverage,
+                "volume": volume,
+                "totalAssets": totalAssets,
+                "expenseRatio": expenseRatio,
+                "currency": currency
+            }
+
+            write_financial_section(file, financial_data)
             
             # 3. Description
             file.write(f"## Description\n\n")
