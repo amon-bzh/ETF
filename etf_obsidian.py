@@ -40,6 +40,155 @@ def print_note_dates(created, modified):
         print(f"{Fore.YELLOW}{modified_label} {modified}{Style.RESET_ALL}")
 
 
+# ----------------------------
+# Helpers: data fetching & compute
+# ----------------------------
+
+def get_sector_weights(yqfund, ticker_symbol):
+    try:
+        repartition = yqfund.fund_sector_weightings
+        if isinstance(repartition, dict) and ticker_symbol in repartition:
+            repartition = repartition[ticker_symbol]
+        if hasattr(repartition, 'map'):
+            repartition_fmt = repartition.map(
+                lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
+            )
+        else:
+            repartition_fmt = repartition
+        return repartition_fmt, None
+    except Exception as e:
+        return "Non disponible", str(e)
+
+
+def get_top_holdings(yqfund, ticker_symbol):
+    try:
+        top_holdings = yqfund.fund_top_holdings
+        if isinstance(top_holdings, dict) and ticker_symbol in top_holdings:
+            top_holdings = top_holdings[ticker_symbol]
+        if hasattr(top_holdings, 'map'):
+            top_holdings_fmt = top_holdings.map(
+                lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
+            )
+        else:
+            top_holdings_fmt = top_holdings
+        return top_holdings_fmt, None
+    except Exception as e:
+        return "Non disponible", str(e)
+
+
+def compute_performance_and_stats(fund):
+    rendement_data = {}
+    stats_data = {}
+    try:
+        hist_1y = fund.history(period='1y')
+        if len(hist_1y) <= 1:
+            return {}, {}
+        prix_debut = hist_1y['Close'].iloc[0]
+        prix_fin = hist_1y['Close'].iloc[-1]
+        rendement_simple = ((prix_fin - prix_debut) / prix_debut) * 100
+
+        dividends_1y = fund.dividends[hist_1y.index[0]:hist_1y.index[-1]]
+        total_dividends = dividends_1y.sum() if hasattr(dividends_1y, 'empty') and not dividends_1y.empty else 0
+        rendement_total = ((prix_fin + total_dividends - prix_debut) / prix_debut) * 100
+
+        returns = hist_1y['Close'].pct_change().dropna()
+        volatilite = returns.std() * np.sqrt(252) * 100
+
+        cumulative = (1 + returns).cumprod()
+        running_max = cumulative.expanding().max()
+        drawdown = (cumulative - running_max) / running_max
+        max_drawdown = drawdown.min() * 100
+        max_dd_date = drawdown.idxmin().strftime('%d/%m/%Y')
+
+        prix_min = hist_1y['Close'].min()
+        prix_max = hist_1y['Close'].max()
+        prix_moyen = hist_1y['Close'].mean()
+
+        jours_positifs = (returns > 0).sum()
+        jours_negatifs = (returns < 0).sum()
+        taux_reussite = jours_positifs / (jours_positifs + jours_negatifs) * 100 if (jours_positifs + jours_negatifs) > 0 else 0
+
+        meilleur_jour = returns.max() * 100
+        pire_jour = returns.min() * 100
+
+        sharpe_ratio = rendement_total / volatilite if volatilite > 0 else 0
+
+        negative_returns = returns[returns < 0]
+        sortino_ratio = 0
+        if len(negative_returns) > 0:
+            downside_vol = negative_returns.std() * np.sqrt(252) * 100
+            if downside_vol > 0:
+                sortino_ratio = rendement_total / downside_vol
+
+        calmar_ratio = rendement_total / abs(max_drawdown) if abs(max_drawdown) > 0 else 0
+
+        sharpe_emoji, sharpe_alert = get_ratio_emoji(sharpe_ratio, 'sharpe')
+        sortino_emoji, sortino_alert = get_ratio_emoji(sortino_ratio, 'sortino')
+
+        rendement_data = {
+            'rendement_simple': rendement_simple,
+            'rendement_total': rendement_total,
+            'volatilite': volatilite,
+            'max_drawdown': max_drawdown,
+            'max_dd_date': max_dd_date,
+            'sharpe': sharpe_ratio,
+            'sharpe_emoji': sharpe_emoji,
+            'sharpe_alert': sharpe_alert,
+            'sortino': sortino_ratio,
+            'sortino_emoji': sortino_emoji,
+            'sortino_alert': sortino_alert,
+            'calmar': calmar_ratio,
+            'date_calcul': datetime.now().strftime('%d/%m/%Y'),
+            'periode_debut': hist_1y.index[0].strftime('%d/%m/%Y'),
+            'periode_fin': hist_1y.index[-1].strftime('%d/%m/%Y')
+        }
+
+        stats_data = {
+            'prix_min': prix_min,
+            'prix_max': prix_max,
+            'prix_moyen': prix_moyen,
+            'amplitude': ((prix_max - prix_min) / prix_min * 100) if prix_min else 0,
+            'jours_positifs': jours_positifs,
+            'jours_negatifs': jours_negatifs,
+            'taux_reussite': taux_reussite,
+            'meilleur_jour': meilleur_jour,
+            'pire_jour': pire_jour
+        }
+        return rendement_data, stats_data
+    except Exception:
+        return {}, {}
+
+
+def compute_ytd_return(fund):
+    try:
+        start_of_year = datetime(datetime.now().year, 1, 1).strftime('%Y-%m-%d')
+        hist_ytd = fund.history(start=start_of_year)
+        if len(hist_ytd) > 1:
+            prix_debut_ytd = hist_ytd['Close'].iloc[0]
+            prix_fin_ytd = hist_ytd['Close'].iloc[-1]
+            return ((prix_fin_ytd - prix_debut_ytd) / prix_debut_ytd) * 100
+    except Exception:
+        pass
+    return None
+
+
+def build_dividend_info(fund, dividendYield):
+    try:
+        dividends = fund.dividends
+        if hasattr(dividends, 'empty') and not dividends.empty and len(dividends) > 0:
+            dernier_dividende = dividends.iloc[-1]
+            date_dernier_div = dividends.index[-1].strftime('%d/%m/%Y')
+            return {
+                'yield': dividendYield,
+                'dernier_montant': dernier_dividende,
+                'date_dernier': date_dernier_div,
+                'nb_distributions': len(dividends)
+            }
+    except Exception:
+        pass
+    return {}
+
+
 def write_to_obsidian(fund, yqfund, info, ticker_symbol):
     """
     Crée une fiche Markdown complète dans Obsidian pour un ETF
@@ -97,155 +246,22 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         businessSummary = info.get('longBusinessSummary', info.get('description', 'Non disponible'))
         
         # Répartition et holdings avec multiplication par 100
-        try:
-            repartition = yqfund.fund_sector_weightings
-            if isinstance(repartition, dict) and ticker_symbol in repartition:
-                repartition = repartition[ticker_symbol]
-            
-            # Multiplier par 100 si les valeurs sont des décimaux (entre 0 et 1)
-            if hasattr(repartition, 'map'):
-                repartition_fmt = repartition.map(
-                    lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
-                )
-            else:
-                repartition_fmt = repartition
-        except Exception as e:
-            print(f"{Fore.YELLOW}Attention: Répartition non disponible - {e}{Style.RESET_ALL}")
-            repartition = "Non disponible"
-            repartition_fmt = "Non disponible"
-        
-        try:
-            top_holdings = yqfund.fund_top_holdings
-            if isinstance(top_holdings, dict) and ticker_symbol in top_holdings:
-                top_holdings = top_holdings[ticker_symbol]
-            
-            # Multiplier par 100 si les valeurs sont des décimaux
-            if hasattr(top_holdings, 'map'):
-                top_holdings_fmt = top_holdings.map(
-                    lambda x: x * 100 if isinstance(x, (int, float)) and 0 <= x <= 1 else x
-                )
-            else:
-                top_holdings_fmt = top_holdings
-        except Exception as e:
-            print(f"{Fore.YELLOW}Attention: Holdings non disponibles - {e}{Style.RESET_ALL}")
-            top_holdings = "Non disponible"
-            top_holdings_fmt = "Non disponible"
-        
+        repartition_fmt, rep_err = get_sector_weights(yqfund, ticker_symbol)
+        if rep_err:
+            print(f"{Fore.YELLOW}Attention: Répartition non disponible - {rep_err}{Style.RESET_ALL}")
+
+        top_holdings_fmt, th_err = get_top_holdings(yqfund, ticker_symbol)
+        if th_err:
+            print(f"{Fore.YELLOW}Attention: Holdings non disponibles - {th_err}{Style.RESET_ALL}")
+
         # Calcul de rendement sur 1 an (version complète avec statistiques)
-        rendement_data = {}
-        stats_data = {}
-        try:
-            hist_1y = fund.history(period='1y')
-            if len(hist_1y) > 1:
-                prix_debut = hist_1y['Close'].iloc[0]
-                prix_fin = hist_1y['Close'].iloc[-1]
-                rendement_simple = ((prix_fin - prix_debut) / prix_debut) * 100
-                
-                dividends_1y = fund.dividends[hist_1y.index[0]:hist_1y.index[-1]]
-                total_dividends = dividends_1y.sum() if not dividends_1y.empty else 0
-                rendement_total = ((prix_fin + total_dividends - prix_debut) / prix_debut) * 100
-                
-                # Calculs statistiques
-                returns = hist_1y['Close'].pct_change().dropna()
-                volatilite = returns.std() * np.sqrt(252) * 100
-                
-                # Drawdown
-                cumulative = (1 + returns).cumprod()
-                running_max = cumulative.expanding().max()
-                drawdown = (cumulative - running_max) / running_max
-                max_drawdown = drawdown.min() * 100
-                max_dd_date = drawdown.idxmin().strftime('%d/%m/%Y')
-                
-                # Prix min/max/moyen
-                prix_min = hist_1y['Close'].min()
-                prix_max = hist_1y['Close'].max()
-                prix_moyen = hist_1y['Close'].mean()
-                
-                # Jours positifs/négatifs
-                jours_positifs = (returns > 0).sum()
-                jours_negatifs = (returns < 0).sum()
-                taux_reussite = jours_positifs / (jours_positifs + jours_negatifs) * 100
-                
-                # Meilleur et pire jour
-                meilleur_jour = returns.max() * 100
-                pire_jour = returns.min() * 100
-                
-                # Ratios
-                sharpe_ratio = rendement_total / volatilite if volatilite > 0 else 0
-                
-                negative_returns = returns[returns < 0]
-                sortino_ratio = 0
-                if len(negative_returns) > 0:
-                    downside_vol = negative_returns.std() * np.sqrt(252) * 100
-                    if downside_vol > 0:
-                        sortino_ratio = rendement_total / downside_vol
-                
-                calmar_ratio = rendement_total / abs(max_drawdown) if abs(max_drawdown) > 0 else 0
-                
-                # Emojis pour les ratios
-                sharpe_emoji, sharpe_alert = get_ratio_emoji(sharpe_ratio, 'sharpe')
-                sortino_emoji, sortino_alert = get_ratio_emoji(sortino_ratio, 'sortino')
-                
-                rendement_data = {
-                    'rendement_simple': rendement_simple,
-                    'rendement_total': rendement_total,
-                    'volatilite': volatilite,
-                    'max_drawdown': max_drawdown,
-                    'max_dd_date': max_dd_date,
-                    'sharpe': sharpe_ratio,
-                    'sharpe_emoji': sharpe_emoji,
-                    'sharpe_alert': sharpe_alert,
-                    'sortino': sortino_ratio,
-                    'sortino_emoji': sortino_emoji,
-                    'sortino_alert': sortino_alert,
-                    'calmar': calmar_ratio,
-                    'date_calcul': datetime.now().strftime('%d/%m/%Y'),
-                    'periode_debut': hist_1y.index[0].strftime('%d/%m/%Y'),
-                    'periode_fin': hist_1y.index[-1].strftime('%d/%m/%Y')
-                }
-                
-                stats_data = {
-                    'prix_min': prix_min,
-                    'prix_max': prix_max,
-                    'prix_moyen': prix_moyen,
-                    'amplitude': ((prix_max - prix_min) / prix_min * 100),
-                    'jours_positifs': jours_positifs,
-                    'jours_negatifs': jours_negatifs,
-                    'taux_reussite': taux_reussite,
-                    'meilleur_jour': meilleur_jour,
-                    'pire_jour': pire_jour
-                }
-        except Exception as e:
-            print(f"{Fore.YELLOW}Attention: Calcul de rendement échoué - {e}{Style.RESET_ALL}")
-            pass
-        
+        rendement_data, stats_data = compute_performance_and_stats(fund)
+
         # YTD (rendement depuis le début de l'année)
-        ytd_rendement = None
-        try:
-            start_of_year = datetime(datetime.now().year, 1, 1).strftime('%Y-%m-%d')
-            hist_ytd = fund.history(start=start_of_year)
-            if len(hist_ytd) > 1:
-                prix_debut_ytd = hist_ytd['Close'].iloc[0]
-                prix_fin_ytd = hist_ytd['Close'].iloc[-1]
-                ytd_rendement = ((prix_fin_ytd - prix_debut_ytd) / prix_debut_ytd) * 100
-        except Exception:
-            pass
-        
+        ytd_rendement = compute_ytd_return(fund)
+
         # Dividendes
-        dividend_info = {}
-        try:
-            dividends = fund.dividends
-            if not dividends.empty and len(dividends) > 0:
-                dernier_dividende = dividends.iloc[-1]
-                date_dernier_div = dividends.index[-1].strftime('%d/%m/%Y')
-                dividend_info = {
-                    'yield': dividendYield,
-                    'dernier_montant': dernier_dividende,
-                    'date_dernier': date_dernier_div,
-                    'nb_distributions': len(dividends)
-                }
-        except Exception:
-            pass
+        dividend_info = build_dividend_info(fund, dividendYield)
         
         # Création du fichier
         home_directory = os.path.expanduser("~")
