@@ -33,8 +33,16 @@ def setup_logging(debug=False):
     log_path = os.path.join(os.getcwd(), log_filename)
     
     # Handler pour écrire dans le fichier
-    file_handler = logging.FileHandler(log_path, mode='a', encoding='utf-8')
-    file_handler.setLevel(logging.DEBUG)
+    try:
+        file_handler = logging.FileHandler(log_path, mode='a', encoding='utf-8')
+        file_handler.setLevel(logging.DEBUG)
+    except Exception as e:
+        # Si on ne peut pas créer le fichier log, on désactive le debug proprement
+        print(f"⚠️ Impossible de créer le fichier log ({log_path}) : {e}")
+        print("➡️  Désactivation du mode debug.")
+        _debug_enabled = False
+        logging.disable(logging.CRITICAL)
+        return
     
     # Format des logs
     formatter = logging.Formatter(

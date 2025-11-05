@@ -169,23 +169,44 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         # Description
         businessSummary = info.get('longBusinessSummary', info.get('description', 'Non disponible'))
         
-        # Répartition et holdings avec multiplication par 100
-        repartition_fmt, rep_err = get_sector_weights(yqfund, ticker_symbol)
-        if rep_err:
-            print(f"{Fore.YELLOW}Attention: Répartition non disponible - {rep_err}{Style.RESET_ALL}")
+        # Répartition sectorielle
+        try:
+            repartition_fmt, rep_err = get_sector_weights(yqfund, ticker_symbol)
+            if rep_err:
+                print(f"{Fore.YELLOW}Attention: Répartition non disponible - {rep_err}{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.RED}Erreur lors de la récupération de la répartition sectorielle: {e}{Style.RESET_ALL}")
+            repartition_fmt = "Non disponible"
 
-        top_holdings_fmt, th_err = get_top_holdings(yqfund, ticker_symbol)
-        if th_err:
-            print(f"{Fore.YELLOW}Attention: Holdings non disponibles - {th_err}{Style.RESET_ALL}")
+        # Principales positions
+        try:
+            top_holdings_fmt, th_err = get_top_holdings(yqfund, ticker_symbol)
+            if th_err:
+                print(f"{Fore.YELLOW}Attention: Holdings non disponibles - {th_err}{Style.RESET_ALL}")
+        except Exception as e:
+            print(f"{Fore.RED}Erreur lors de la récupération des principales positions: {e}{Style.RESET_ALL}")
+            top_holdings_fmt = "Non disponible"
 
         # Calcul de rendement sur 1 an (version complète avec statistiques)
-        rendement_data, stats_data = compute_performance_and_stats(fund)
+        try:
+            rendement_data, stats_data = compute_performance_and_stats(fund)
+        except Exception as e:
+            print(f"{Fore.RED}Erreur lors du calcul des performances: {e}{Style.RESET_ALL}")
+            rendement_data, stats_data = {}, {}
 
         # YTD (rendement depuis le début de l'année)
-        ytd_rendement = compute_ytd_return(fund)
+        try:
+            ytd_rendement = compute_ytd_return(fund)
+        except Exception as e:
+            print(f"{Fore.RED}Erreur lors du calcul YTD: {e}{Style.RESET_ALL}")
+            ytd_rendement = None
 
         # Dividendes
-        dividend_info = build_dividend_info(fund, dividendYield)
+        try:
+            dividend_info = build_dividend_info(fund, dividendYield)
+        except Exception as e:
+            print(f"{Fore.RED}Erreur lors de la récupération des dividendes: {e}{Style.RESET_ALL}")
+            dividend_info = {}
         
         with open(filename, "w", encoding='utf-8') as file:
             # En-tête
