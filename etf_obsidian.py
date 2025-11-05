@@ -39,6 +39,70 @@ def print_note_dates(created, modified):
     else:
         print(f"{Fore.YELLOW}{modified_label} {modified}{Style.RESET_ALL}")
 
+def get_obsidian_paths(longName):
+    """
+    Construit les chemins Obsidian (dossier + fichier) pour la fiche ETF.
+    Crée le dossier cible s'il n'existe pas.
+    Returns: (directory_name, filename)
+    """
+    home_directory = os.path.expanduser("~")
+    obsidian_directory = home_directory + "/Library/Mobile Documents/iCloud~md~obsidian/Documents/Invest"
+    directory_name = obsidian_directory + "/8 ETF"
+    os.makedirs(directory_name, exist_ok=True)
+    filename = f"{directory_name}/{longName}.md"
+    return directory_name, filename
+
+
+def confirm_overwrite_if_exists(filename, date_creation):
+    """
+    Vérifie si un fichier existe déjà et demande confirmation d'écrasement.
+    Affiche les dates (création / modif) si trouvées. 
+    Returns: (proceed: bool, original_creation_date: str|None)
+    """
+    if os.path.exists(filename):
+        # Lire le contenu pour extraire les dates
+        with open(filename, "r", encoding="utf-8") as f:
+            content = f.read()
+            date_line = None
+            mod_line = None
+            for line in content.splitlines():
+                if "**Fiche créée le" in line:
+                    date_line = line.strip()
+                if "**Dernière mise à jour" in line:
+                    mod_line = line.strip()
+
+        # Afficher le contexte à l'utilisateur
+        if date_line and mod_line:
+            print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF.{Style.RESET_ALL}")
+            created = date_line.replace("**Fiche créée le :**", "").strip()
+            modified = mod_line.replace("**Dernière mise à jour :**", "").strip()
+            print_note_dates(created, modified)
+        elif date_line:
+            print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF.{Style.RESET_ALL}")
+            created = date_line.replace("**Fiche créée le :**", "").strip()
+            modified = created
+            print_note_dates(created, modified)
+        else:
+            print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF, mais la date de création n'a pas été trouvée.{Style.RESET_ALL}")
+
+        reponse = input("Souhaites tu l'écraser ? (o/n) ").strip().lower()
+        if reponse != 'o':
+            print(f"{Fore.CYAN}Opération annulée. Aucun fichier écrasé.{Style.RESET_ALL}")
+            return False, None
+
+        # Extraire la date de création existante si présente
+        original_creation_date = None
+        for line in content.splitlines():
+            if "**Fiche créée le" in line:
+                original_creation_date = line.replace("**Fiche créée le :**","").strip()
+                break
+        if not original_creation_date:
+            original_creation_date = date_creation
+        return True, original_creation_date
+
+    # Fichier n'existe pas
+    return True, date_creation
+
 def write_to_obsidian(fund, yqfund, info, ticker_symbol):
     """
     Crée une fiche Markdown complète dans Obsidian pour un ETF
@@ -50,14 +114,20 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         ticker_symbol: symbole du ticker
     """
     try:
-        # Date de création de la fiche
-        date_creation = datetime.now().strftime('%d/%m/%Y à %H:%M')
-        
-        # Informations de base
+        # Récupération des éléments nécessaires pour créer la fiche Obsidian        
         symbol = info.get('symbol', ticker_symbol)
-        symbol_as_tag = symbol.replace('.', '_')
-        longName = info.get('longName', info.get('shortName', symbol))
         shortName = info.get('shortName', 'N/A')
+        longName = info.get('longName', info.get('shortName', symbol))
+        date_creation = datetime.now().strftime('%d/%m/%Y à %H:%M')
+         
+        # Création du fichier (chemins) puis confirmation d'écrasement éventuel
+        directory_name, filename = get_obsidian_paths(longName)
+        proceed, original_creation_date = confirm_overwrite_if_exists(filename, date_creation)
+        if not proceed:
+            return
+                
+        # Informations de base
+        symbol_as_tag = symbol.replace('.', '_')
         exchange = info.get('exchange', '<non présent>')
         fundFamily = info.get('fundFamily', info.get('family', '<non présent>'))
         quoteType = info.get('quoteType', '<non présent>')
@@ -113,54 +183,6 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         # Dividendes
         dividend_info = build_dividend_info(fund, dividendYield)
         
-        # Création du fichier
-        home_directory = os.path.expanduser("~")
-        obsidian_directory = home_directory + "/Library/Mobile Documents/iCloud~md~obsidian/Documents/Invest"
-        directory_name = obsidian_directory + "/8 ETF"
-        os.makedirs(directory_name, exist_ok=True)
-        filename = f"{directory_name}/{longName}.md"
-
-        # Vérification si le fichier existe déjà
-        if os.path.exists(filename):
-            # Lire la première ligne contenant la date
-            with open(filename, "r", encoding="utf-8") as f:
-                content = f.read()
-                date_line = None
-                mod_line = None
-                for line in content.splitlines():
-                    if "**Fiche créée le" in line:
-                        date_line = line.strip()
-                    if "**Dernière mise à jour" in line:
-                        mod_line = line.strip()
-                # Affichage avec print_note_dates
-                if date_line and mod_line:
-                    print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF.{Style.RESET_ALL}")
-                    created = date_line.replace("**Fiche créée le :**", "").strip()
-                    modified = mod_line.replace("**Dernière mise à jour :**", "").strip()
-                    print_note_dates(created, modified)
-                elif date_line:
-                    print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF.{Style.RESET_ALL}")
-                    created = date_line.replace("**Fiche créée le :**", "").strip()
-                    modified = created
-                    print_note_dates(created, modified)
-                else:
-                    print(f"{Fore.YELLOW}⚠️ Une fiche existe déjà pour cet ETF, mais la date de création n'a pas été trouvée.{Style.RESET_ALL}")
-
-            reponse = input("Souhaites tu l'écraser ? (o/n) ").strip().lower()
-            if reponse != 'o':
-                print(f"{Fore.CYAN}Opération annulée. Aucun fichier écrasé.{Style.RESET_ALL}")
-                return
-            # Extraire la date de création existante si présente
-            original_creation_date = None
-            for line in content.splitlines():
-                if "**Fiche créée le" in line:
-                    original_creation_date = line.replace("**Fiche créée le :**","").strip()
-                    break
-            if not original_creation_date:
-                original_creation_date = date_creation
-        else:
-            original_creation_date = date_creation
-
         with open(filename, "w", encoding='utf-8') as file:
             # En-tête
             write_header(file, symbol_as_tag, original_creation_date, date_creation)
