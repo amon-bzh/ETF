@@ -121,6 +121,20 @@ def confirm_overwrite_if_exists(filename, date_creation):
     if is_debug_enabled(): log_info("Aucune fiche existante, création nouvelle")
     return True, date_creation
 
+def extract_creation_date(content):
+    """
+    Extrait la date de création depuis le contenu Markdown existant.
+    Retourne None si absente.
+    """
+    for line in content.splitlines():
+        if "Fiche créée le" in line:
+            return (
+                line.replace("**Fiche créée le :**", "")
+                    .replace("Fiche créée le :", "")
+                    .strip()
+            )
+    return None
+
 def write_to_obsidian(fund, yqfund, info, ticker_symbol):
     """
     Crée une fiche Markdown complète dans Obsidian pour un ETF
@@ -142,9 +156,98 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         # Création du fichier (chemins) puis confirmation d'écrasement éventuel
         directory_name, filename = get_obsidian_paths(longName)
         if is_debug_enabled(): log_info(f"Chemins Obsidian: dir={directory_name}, file={filename}")
-        proceed, original_creation_date = confirm_overwrite_if_exists(filename, date_creation)
+
+        # Préparer les valeurs par défaut issues des données Yahoo avant enrichissement
+        category = info.get('category', '')
+        indice_replique = detect_indice(longName, category)
+        firstTrade = info.get('firstTradeDateEpochUtc', None)
+        firstTradeDate = datetime.fromtimestamp(firstTrade).strftime('%d/%m/%Y') if firstTrade else 'N/A'
+        isin = info.get('isin', 'N/A')
+        
+        # --- Gestion mise à jour inline de champs existants ---
+        file_exists = os.path.exists(filename)
+        user_modified = False
+
+        if file_exists:
+            with open(filename, "r", encoding="utf-8") as f:
+                old_content = f.read()
+            lines = old_content.splitlines()
+
+            fields_to_check = {
+                "Indice répliqué": "indice_replique",
+                "ISIN": "isin",
+                "Date de création ETF": "firstTradeDate"
+            }
+
+            original_values = {}
+            for label, var_name in fields_to_check.items():
+                search = f"- **{label}** :"
+                for line in lines:
+                    if search in line:
+                        current_val = line.split(":", 1)[1].strip()
+                        original_values[var_name] = current_val
+                        break
+
+            import sys
+            edit_mode = ("--edit" in sys.argv)
+
+            def maybe_replace(field_label, var_name, current):
+                nonlocal user_modified
+                if var_name not in original_values:
+                    return current
+
+                prev = original_values[var_name].replace("*", "").strip()
+
+                # Pas de valeur → demande auto
+                if prev in ("N/A", "Non renseigné"):
+                    print(f"\nChamp détecté : {field_label}")
+                    print(f"Valeur actuelle : {prev}")
+                    rep = input("Souhaites tu la compléter ? (o/n) ").strip().lower()
+                    if rep == "o":
+                        new_val = input(f"Nouvelle valeur pour {field_label} : ").strip()
+                        if new_val and new_val != prev:
+                            user_modified = True
+                            return new_val
+                    return prev
+
+                # Valeur existante → modifiable seulement en mode --edit
+                if not edit_mode:
+                    return prev
+
+                print(f"\nChamp détecté : {field_label}")
+                print(f"Valeur actuelle : {prev}")
+                rep = input("Souhaites tu la remplacer ? (o/n) ").strip().lower()
+                if rep == "o":
+                    new_val = input(f"Nouvelle valeur pour {field_label} : ").strip()
+                    if new_val and new_val != prev:
+                        user_modified = True
+                        return new_val
+
+                return prev
+
+            # --- Récupérer valeurs actuelles du script avant modification ---
+            current_indice = locals().get("indice_replique", "N/A")
+            current_isin = locals().get("isin", "N/A")
+            current_firstTradeDate = locals().get("firstTradeDate", "N/A")
+
+            # --- Appliquer les remplacements sécurisés ---
+            indice_replique = maybe_replace("Indice répliqué", "indice_replique", current_indice)
+            isin = maybe_replace("ISIN", "isin", current_isin)
+            firstTradeDate = maybe_replace("Date de création ETF", "firstTradeDate", current_firstTradeDate)
+
+        # --- Fin enrichissement inline ---
+        
+        # Si l'utilisateur a modifié au moins un champ → pas d'alerte "écraser ?"
+        if file_exists and user_modified:
+            proceed = True
+            original_creation_date = extract_creation_date(old_content)
+            print("✅ Mise à jour des champs existants, sans écraser toute la fiche.")
+        else:
+            proceed, original_creation_date = confirm_overwrite_if_exists(filename, date_creation)
+        
         if not proceed:
             return
+
                 
         # Informations de base
         symbol_as_tag = symbol.replace('.', '_')
@@ -168,16 +271,8 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         dividendYield = info.get('yield', info.get('trailingAnnualDividendYield', None))
         etf_type = "Distribuant" if dividendYield and dividendYield > 0 else "Capitalisant"
         
-        # Détection de l'indice répliqué
-        category = info.get('category', '')
-        indice_replique = detect_indice(longName, category)
-        
-        # Date de création de l'ETF
-        firstTrade = info.get('firstTradeDateEpochUtc', None)
-        firstTradeDate = datetime.fromtimestamp(firstTrade).strftime('%d/%m/%Y') if firstTrade else 'N/A'
-        
-        # ISIN / codes
-        isin = info.get('isin', 'N/A')
+        # Détection de l'indice / ISIN / date déjà préparées en amont (et potentiellement éditées par l'utilisateur)
+        # category, indice_replique, firstTradeDate, isin : conservés
         
         # URL du site émetteur
         site_web = get_emetteur_url(fundFamily, longName)
