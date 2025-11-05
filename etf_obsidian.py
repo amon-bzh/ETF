@@ -46,6 +46,15 @@ def get_obsidian_paths(longName):
     Crée le dossier cible s'il n'existe pas.
     Returns: (directory_name, filename)
     """
+    # Mode test : si le flag existe, on isole l’écriture
+    repo_root = os.path.dirname(os.path.abspath(__file__))
+    test_flag = os.path.join(repo_root, ".obsidian_test_mode")
+
+    if os.path.exists(test_flag):
+        test_dir = os.path.expanduser("~/ObsidianTest/ETF")
+        os.makedirs(test_dir, exist_ok=True)
+        filename = f"{test_dir}/{longName}.md"
+        return test_dir, filename
     home_directory = os.path.expanduser("~")
     obsidian_directory = home_directory + "/Library/Mobile Documents/iCloud~md~obsidian/Documents/Invest"
     directory_name = obsidian_directory + "/8 ETF"
