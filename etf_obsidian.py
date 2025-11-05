@@ -189,7 +189,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                         break
 
             import sys
-            edit_mode = ("--edit" in sys.argv)
+            edit_mode = ("--editna" in sys.argv)
 
             def maybe_replace(field_label, var_name, current):
                 nonlocal user_modified

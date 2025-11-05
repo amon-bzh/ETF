@@ -240,14 +240,14 @@ def main():
                         help="Période pour le calcul de rendement (1mo, 3mo, 6mo, 1y, 2y, 5y, max) ou dates YYYY-MM-DD:YYYY-MM-DD")
     parser.add_argument("--no-dividends", action="store_true", help="Exclure les dividendes du calcul de rendement.")
     parser.add_argument("--benchmark", type=str, help="Comparer avec un benchmark (ex: ^GSPC pour S&P500)")
-    parser.add_argument("--edit", action="store_true", help="Activer le mode édition pour mettre à jour la fiche Obsidian existante")
+    parser.add_argument("--editna", action="store_true", help="Éditer uniquement les champs N/A dans la fiche Obsidian")
     parser.add_argument("--debug", action="store_true", help="Activer le mode debug avec logs dans fichier")
 
     # Analyser les arguments en ligne de commande
     args = parser.parse_args()
     setup_logging(debug=args.debug)
     log_debug(f"Arguments: {args}")
-    if args.edit:
+    if args.editna:
         log_info("Mode édition activé pour mise à jour des champs Obsidian.")
     log_info(f"Démarrage etfinfo avec ticker: {args.ticker}")
     log_info(f"Lancement de etfinfo.py avec arguments : {sys.argv}")
