@@ -3,11 +3,20 @@
 
 import logging
 import os
+import inspect
 from datetime import datetime
 
 # Variable globale pour savoir si le debug est activé
 _debug_enabled = False
 _logger = None
+
+def _origin():
+    """
+    Retourne le nom du module appelant pour enrichir les logs.
+    """
+    frame = inspect.stack()[2]
+    module = inspect.getmodule(frame.frame)
+    return module.__name__ if module else "unknown"
 
 def setup_logging(debug=False):
     """
@@ -46,8 +55,8 @@ def setup_logging(debug=False):
     
     # Format des logs
     formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] [%(module)s:%(funcName)s:%(lineno)d] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        "%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
     )
     file_handler.setFormatter(formatter)
     
@@ -65,27 +74,27 @@ def setup_logging(debug=False):
 def log_debug(message):
     """Log un message de niveau DEBUG"""
     if _debug_enabled and _logger:
-        _logger.debug(message)
+        _logger.debug(f"[{_origin()}] {message}")
 
 def log_info(message):
     """Log un message de niveau INFO"""
     if _debug_enabled and _logger:
-        _logger.info(message)
+        _logger.info(f"[{_origin()}] {message}")
 
 def log_warning(message):
     """Log un message de niveau WARNING"""
     if _debug_enabled and _logger:
-        _logger.warning(message)
+        _logger.warning(f"[{_origin()}] {message}")
 
 def log_error(message):
     """Log un message de niveau ERROR"""
     if _debug_enabled and _logger:
-        _logger.error(message)
+        _logger.error(f"[{_origin()}] {message}")
 
 def log_exception(message):
     """Log une exception avec traceback complet"""
     if _debug_enabled and _logger:
-        _logger.exception(message)
+        _logger.exception(f"[{_origin()}] {message}")
 
 def is_debug_enabled():
     """Retourne True si le mode debug est activé"""

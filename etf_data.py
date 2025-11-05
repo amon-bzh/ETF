@@ -3,6 +3,7 @@ from datetime import datetime
 import numpy as np
 from datetime import datetime
 from etf_utils import get_ratio_emoji
+from etf_logging import log_info, log_warning, log_error, is_debug_enabled
 
 def compute_ytd_return(fund):
     """
@@ -12,15 +13,22 @@ def compute_ytd_return(fund):
     Returns:
         float ou None
     """
+    if is_debug_enabled():
+        log_info("compute_ytd_return: start")
     try:
         start_of_year = datetime(datetime.now().year, 1, 1).strftime('%Y-%m-%d')
         hist_ytd = fund.history(start=start_of_year)
         if len(hist_ytd) > 1:
             prix_debut_ytd = hist_ytd['Close'].iloc[0]
             prix_fin_ytd = hist_ytd['Close'].iloc[-1]
+            if is_debug_enabled():
+                log_info(f"compute_ytd_return: computed YTD = {((prix_fin_ytd - prix_debut_ytd) / prix_debut_ytd) * 100:.2f}%")
             return ((prix_fin_ytd - prix_debut_ytd) / prix_debut_ytd) * 100
-    except Exception:
-        pass
+    except Exception as e:
+        if is_debug_enabled():
+            log_warning(f"compute_ytd_return: error {e}")
+    if is_debug_enabled():
+        log_info("compute_ytd_return: no data or error, returning None")
     return None
 
 def build_dividend_info(fund, dividendYield):
@@ -34,20 +42,27 @@ def build_dividend_info(fund, dividendYield):
     Returns:
         dict contenant yield, dernier montant, date dernier dividende, nb distributions
     """
+    if is_debug_enabled():
+        log_info("build_dividend_info: start")
     try:
         dividends = fund.dividends
         if hasattr(dividends, 'empty') and not dividends.empty and len(dividends) > 0:
             dernier_dividende = dividends.iloc[-1]
             date_dernier_div = dividends.index[-1].strftime('%d/%m/%Y')
+            if is_debug_enabled():
+                log_info(f"build_dividend_info: last dividend {dernier_dividende} on {date_dernier_div}")
             return {
                 'yield': dividendYield,
                 'dernier_montant': dernier_dividende,
                 'date_dernier': date_dernier_div,
                 'nb_distributions': len(dividends)
             }
-    except Exception:
-        pass
+    except Exception as e:
+        if is_debug_enabled():
+            log_warning(f"build_dividend_info: error {e}")
 
+    if is_debug_enabled():
+        log_info("build_dividend_info: no dividend data, returning empty dict")
     return {}
 
 def compute_performance_and_stats(fund):
@@ -58,11 +73,15 @@ def compute_performance_and_stats(fund):
     Returns:
         rendement_data (dict), stats_data (dict)
     """
+    if is_debug_enabled():
+        log_info("compute_performance_and_stats: start")
     rendement_data = {}
     stats_data = {}
     try:
         hist_1y = fund.history(period='1y')
         if len(hist_1y) <= 1:
+            if is_debug_enabled():
+                log_warning("compute_performance_and_stats: insufficient price history")
             return {}, {}
 
         prix_debut = hist_1y['Close'].iloc[0]
@@ -137,8 +156,12 @@ def compute_performance_and_stats(fund):
             'pire_jour': pire_jour
         }
 
+        if is_debug_enabled():
+            log_info("compute_performance_and_stats: metrics computed successfully")
         return rendement_data, stats_data
-    except Exception:
+    except Exception as e:
+        if is_debug_enabled():
+            log_error(f"compute_performance_and_stats: error {e}")
         return {}, {}
 
 def get_sector_weights(yqfund, ticker_symbol):
@@ -151,6 +174,8 @@ def get_sector_weights(yqfund, ticker_symbol):
     Returns:
         (repartition_fmt, erreur) tuple
     """
+    if is_debug_enabled():
+        log_info("get_sector_weights: start")
     try:
         repartition = yqfund.fund_sector_weightings
         if isinstance(repartition, dict) and ticker_symbol in repartition:
@@ -161,8 +186,12 @@ def get_sector_weights(yqfund, ticker_symbol):
             )
         else:
             repartition_fmt = repartition
+        if is_debug_enabled():
+            log_info("get_sector_weights: sector weights retrieved")
         return repartition_fmt, None
     except Exception as e:
+        if is_debug_enabled():
+            log_warning(f"get_sector_weights: error {e}")
         return "Non disponible", str(e)
 
 def get_top_holdings(yqfund, ticker_symbol):
@@ -175,6 +204,8 @@ def get_top_holdings(yqfund, ticker_symbol):
     Returns:
         (top_holdings_fmt, erreur) tuple
     """
+    if is_debug_enabled():
+        log_info("get_top_holdings: start")
     try:
         top_holdings = yqfund.fund_top_holdings
         if isinstance(top_holdings, dict) and ticker_symbol in top_holdings:
@@ -185,6 +216,10 @@ def get_top_holdings(yqfund, ticker_symbol):
             )
         else:
             top_holdings_fmt = top_holdings
+        if is_debug_enabled():
+            log_info("get_top_holdings: top holdings retrieved")
         return top_holdings_fmt, None
     except Exception as e:
+        if is_debug_enabled():
+            log_warning(f"get_top_holdings: error {e}")
         return "Non disponible", str(e)
