@@ -198,7 +198,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
 
                 prev = original_values[var_name].replace("*", "").strip()
 
-                # Pas de valeur → demande auto
+                # Si pas de valeur → demander à compléter
                 if prev in ("N/A", "Non renseigné"):
                     print(f"\nChamp détecté : {field_label}")
                     print(f"Valeur actuelle : {prev}")
@@ -210,19 +210,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                             return new_val
                     return prev
 
-                # Valeur existante → modifiable seulement en mode --edit
-                if not edit_mode:
-                    return prev
-
-                print(f"\nChamp détecté : {field_label}")
-                print(f"Valeur actuelle : {prev}")
-                rep = input("Souhaites tu la remplacer ? (o/n) ").strip().lower()
-                if rep == "o":
-                    new_val = input(f"Nouvelle valeur pour {field_label} : ").strip()
-                    if new_val and new_val != prev:
-                        user_modified = True
-                        return new_val
-
+                # Si une valeur existe déjà → ne pas proposer changement pour l'instant
                 return prev
 
             # --- Récupérer valeurs actuelles du script avant modification ---
