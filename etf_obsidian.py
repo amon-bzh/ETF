@@ -17,6 +17,7 @@ from etf_markdown import (
     write_notes_section
 )
 from etf_data import compute_ytd_return, build_dividend_info, get_sector_weights, get_top_holdings, compute_performance_and_stats
+from etf_logging import log_info, log_warning, log_error, log_exception, is_debug_enabled
 
 def print_note_dates(created, modified):
     # Align labels so that the ':' are vertically aligned.
@@ -60,6 +61,7 @@ def confirm_overwrite_if_exists(filename, date_creation):
     Returns: (proceed: bool, original_creation_date: str|None)
     """
     if os.path.exists(filename):
+        if is_debug_enabled(): log_info(f"Fiche existante détectée: {filename}")
         # Lire le contenu pour extraire les dates
         with open(filename, "r", encoding="utf-8") as f:
             content = f.read()
@@ -87,6 +89,7 @@ def confirm_overwrite_if_exists(filename, date_creation):
 
         reponse = input("Souhaites tu l'écraser ? (o/n) ").strip().lower()
         if reponse != 'o':
+            if is_debug_enabled(): log_info("Écrasement refusé par l'utilisateur")
             print(f"{Fore.CYAN}Opération annulée. Aucun fichier écrasé.{Style.RESET_ALL}")
             return False, None
 
@@ -102,9 +105,11 @@ def confirm_overwrite_if_exists(filename, date_creation):
                 break
         if not original_creation_date:
             original_creation_date = date_creation
+        if is_debug_enabled(): log_info("Écrasement confirmé, poursuite du traitement")
         return True, original_creation_date
 
     # Fichier n'existe pas
+    if is_debug_enabled(): log_info("Aucune fiche existante, création nouvelle")
     return True, date_creation
 
 def write_to_obsidian(fund, yqfund, info, ticker_symbol):
@@ -123,9 +128,11 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         shortName = info.get('shortName', 'N/A')
         longName = info.get('longName', info.get('shortName', symbol))
         date_creation = datetime.now().strftime('%d/%m/%Y à %H:%M')
+        if is_debug_enabled(): log_info(f"Début génération fiche Obsidian pour {symbol} / {longName}")
          
         # Création du fichier (chemins) puis confirmation d'écrasement éventuel
         directory_name, filename = get_obsidian_paths(longName)
+        if is_debug_enabled(): log_info(f"Chemins Obsidian: dir={directory_name}, file={filename}")
         proceed, original_creation_date = confirm_overwrite_if_exists(filename, date_creation)
         if not proceed:
             return
@@ -174,8 +181,10 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             repartition_fmt, rep_err = get_sector_weights(yqfund, ticker_symbol)
             if rep_err:
                 print(f"{Fore.YELLOW}Attention: Répartition non disponible - {rep_err}{Style.RESET_ALL}")
+                if is_debug_enabled(): log_warning(f"Répartition non disponible - {rep_err}")
         except Exception as e:
             print(f"{Fore.RED}Erreur lors de la récupération de la répartition sectorielle: {e}{Style.RESET_ALL}")
+            if is_debug_enabled(): log_error(f"Erreur répartition sectorielle: {e}")
             repartition_fmt = "Non disponible"
 
         # Principales positions
@@ -183,8 +192,10 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             top_holdings_fmt, th_err = get_top_holdings(yqfund, ticker_symbol)
             if th_err:
                 print(f"{Fore.YELLOW}Attention: Holdings non disponibles - {th_err}{Style.RESET_ALL}")
+                if is_debug_enabled(): log_warning(f"Holdings non disponibles - {th_err}")
         except Exception as e:
             print(f"{Fore.RED}Erreur lors de la récupération des principales positions: {e}{Style.RESET_ALL}")
+            if is_debug_enabled(): log_error(f"Erreur principales positions: {e}")
             top_holdings_fmt = "Non disponible"
 
         # Calcul de rendement sur 1 an (version complète avec statistiques)
@@ -192,6 +203,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             rendement_data, stats_data = compute_performance_and_stats(fund)
         except Exception as e:
             print(f"{Fore.RED}Erreur lors du calcul des performances: {e}{Style.RESET_ALL}")
+            if is_debug_enabled(): log_error(f"Erreur calcul performances: {e}")
             rendement_data, stats_data = {}, {}
 
         # YTD (rendement depuis le début de l'année)
@@ -199,6 +211,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             ytd_rendement = compute_ytd_return(fund)
         except Exception as e:
             print(f"{Fore.RED}Erreur lors du calcul YTD: {e}{Style.RESET_ALL}")
+            if is_debug_enabled(): log_error(f"Erreur calcul YTD: {e}")
             ytd_rendement = None
 
         # Dividendes
@@ -206,6 +219,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             dividend_info = build_dividend_info(fund, dividendYield)
         except Exception as e:
             print(f"{Fore.RED}Erreur lors de la récupération des dividendes: {e}{Style.RESET_ALL}")
+            if is_debug_enabled(): log_error(f"Erreur récupération dividendes: {e}")
             dividend_info = {}
         
         with open(filename, "w", encoding='utf-8') as file:
@@ -267,9 +281,11 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         
         print(f"{Fore.WHITE}✓ Fiche Obsidian créée : {Style.RESET_ALL}{Fore.GREEN}{longName}.md{Style.RESET_ALL}")
         print(f"{Fore.WHITE}📁 Emplacement : {Style.RESET_ALL}{Fore.GREEN}{directory_name}{Style.RESET_ALL}")
+        if is_debug_enabled(): log_info(f"Fiche créée: {filename}")
     
     except Exception as e:
         print(f"{Fore.RED}✗ Erreur lors de la création de la fiche Obsidian: {e}{Style.RESET_ALL}")
+        if is_debug_enabled(): log_exception("Erreur lors de la création de la fiche Obsidian")
         import traceback
         traceback.print_exc()
     
