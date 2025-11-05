@@ -17,7 +17,16 @@ from etf_markdown import (
     write_notes_section
 )
 from etf_data import compute_ytd_return, build_dividend_info, get_sector_weights, get_top_holdings, compute_performance_and_stats
+
 from etf_logging import log_info, log_warning, log_error, log_exception, is_debug_enabled
+
+# Champs éditables en mode --editall
+editable_fields = {
+    "Indice répliqué": "indice_replique",
+    "ISIN": "isin",
+    "Date de création ETF": "firstTradeDate",
+    "Site Web": "site_web"
+}
 
 def print_note_dates(created, modified):
     # Align labels so that the ':' are vertically aligned.
@@ -176,7 +185,8 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             fields_to_check = {
                 "Indice répliqué": "indice_replique",
                 "ISIN": "isin",
-                "Date de création ETF": "firstTradeDate"
+                "Date de création ETF": "firstTradeDate",
+                "Site Web": "site_web"
             }
 
             original_values = {}
@@ -189,7 +199,39 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                         break
 
             import sys
-            edit_mode = ("--editna" in sys.argv)
+            edit_na_mode = ("--editna" in sys.argv)
+            edit_all_mode = ("--editall" in sys.argv)
+
+            # --- Mode editall: proposer sélection des champs via menu ---
+            if file_exists and edit_all_mode:
+                print("\nChamps modifiables :\n")
+                numbered = list(editable_fields.items())
+                for idx, (label, var_key) in enumerate(numbered, start=1):
+                    current_val = original_values.get(var_key, "N/A")
+                    print(f"{idx}) {label:<22} : {current_val}")
+
+                selection = input("\nTape les numéros à modifier (ex: 1,3) ou Enter pour ignorer : ").strip()
+                if selection:
+                    try:
+                        chosen = {int(x.strip()) for x in selection.split(",") if x.strip().isdigit()}
+                        for idx in chosen:
+                            if 1 <= idx <= len(numbered):
+                                label, var_key = numbered[idx-1]
+                                prev_val = original_values.get(var_key, "N/A")
+                                new_val = input(f"Nouvelle valeur pour {label} (actuel: {prev_val}) : ").strip()
+                                if new_val and new_val != prev_val:
+                                    user_modified = True
+                                    if var_key == "firstTradeDate":
+                                        try:
+                                            # Normaliser format JJ/MM/AAAA si utilisateur donne AAAA-MM-JJ
+                                            if "-" in new_val:
+                                                y,m,d = new_val.split("-")
+                                                new_val = f"{d}/{m}/{y}"
+                                        except:
+                                            pass
+                                    original_values[var_key] = new_val
+                    except Exception:
+                        print("⚠️ Saisie invalide, aucune modification appliquée.")
 
             def maybe_replace(field_label, var_name, current):
                 nonlocal user_modified
@@ -198,8 +240,8 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
 
                 prev = original_values[var_name].replace("*", "").strip()
 
-                # Si pas de valeur → demander à compléter
-                if prev in ("N/A", "Non renseigné"):
+                # Mode editna: only prompt if previous value is missing
+                if edit_na_mode and prev in ("N/A", "Non renseigné"):
                     print(f"\nChamp détecté : {field_label}")
                     print(f"Valeur actuelle : {prev}")
                     rep = input("Souhaites tu la compléter ? (o/n) ").strip().lower()
@@ -210,13 +252,24 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                             return new_val
                     return prev
 
-                # Si une valeur existe déjà → ne pas proposer changement pour l'instant
+                # If value exists and we are not in editall mode, keep it
+                if not edit_all_mode:
+                    return prev
+
+                # editall: will be handled later by UI list selection
                 return prev
 
             # --- Récupérer valeurs actuelles du script avant modification ---
             current_indice = locals().get("indice_replique", "N/A")
             current_isin = locals().get("isin", "N/A")
             current_firstTradeDate = locals().get("firstTradeDate", "N/A")
+
+            # Si editall: écraser valeurs ici avec celles choisies
+            if edit_all_mode:
+                indice_replique = original_values.get("indice_replique", indice_replique)
+                isin = original_values.get("isin", isin)
+                firstTradeDate = original_values.get("firstTradeDate", firstTradeDate)
+                site_web = original_values.get("site_web", locals().get("site_web", ""))
 
             # --- Appliquer les remplacements sécurisés ---
             indice_replique = maybe_replace("Indice répliqué", "indice_replique", current_indice)

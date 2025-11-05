@@ -241,12 +241,18 @@ def main():
     parser.add_argument("--no-dividends", action="store_true", help="Exclure les dividendes du calcul de rendement.")
     parser.add_argument("--benchmark", type=str, help="Comparer avec un benchmark (ex: ^GSPC pour S&P500)")
     parser.add_argument("--editna", action="store_true", help="Éditer uniquement les champs N/A dans la fiche Obsidian")
+    parser.add_argument("--editall", action="store_true", help="Modifier tous les champs éditables de la fiche Obsidian")
     parser.add_argument("--debug", action="store_true", help="Activer le mode debug avec logs dans fichier")
 
     # Analyser les arguments en ligne de commande
     args = parser.parse_args()
     setup_logging(debug=args.debug)
     log_debug(f"Arguments: {args}")
+    
+    # Propager --editall vers etf_obsidian via sys.argv
+    if args.editall and "--editall" not in sys.argv:
+        sys.argv.append("--editall")
+        
     if args.editna:
         log_info("Mode édition activé pour mise à jour des champs Obsidian.")
     log_info(f"Démarrage etfinfo avec ticker: {args.ticker}")
