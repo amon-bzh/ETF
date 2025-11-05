@@ -93,8 +93,12 @@ def confirm_overwrite_if_exists(filename, date_creation):
         # Extraire la date de création existante si présente
         original_creation_date = None
         for line in content.splitlines():
-            if "**Fiche créée le" in line:
-                original_creation_date = line.replace("**Fiche créée le :**","").strip()
+            if "Fiche créée le" in line:
+                original_creation_date = (
+                    line.replace("**Fiche créée le :**", "")
+                        .replace("Fiche créée le :", "")
+                        .strip()
+                )
                 break
         if not original_creation_date:
             original_creation_date = date_creation
