@@ -546,3 +546,109 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         traceback.print_exc()
     
     return
+
+
+# --- Nouvelle fonction : ajout de note personnelle à une fiche Obsidian existante ---
+def append_obsidian_note(ticker_symbol):
+    """
+    Ajoute une note personnelle à la fiche Obsidian existante pour le ticker donné.
+    """
+    from datetime import datetime
+
+    try:
+        # Déterminer le bon répertoire (mode test ou Vault principal)
+        repo_root = os.path.dirname(os.path.abspath(__file__))
+        test_flag = os.path.join(repo_root, ".obsidian_test_mode")
+
+        home_directory = os.path.expanduser("~")
+        if os.path.exists(test_flag):
+            obsidian_directory = os.path.join(home_directory, "ObsidianTest/ETF")
+        else:
+            obsidian_directory = os.path.join(
+                home_directory,
+                "Library/Mobile Documents/iCloud~md~obsidian/Documents/Invest/8 ETF"
+            )
+
+        filename = None
+        search_pattern = f"**Symbole** : {ticker_symbol}"
+
+        for file in os.listdir(obsidian_directory):
+            if not file.lower().endswith(".md"):
+                continue
+            file_path = os.path.join(obsidian_directory, file)
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    if search_pattern in content:
+                        filename = file_path
+                        break
+            except Exception as e:
+                log_warning(f"Impossible de lire {file_path}: {e}")
+                continue
+
+        if not filename:
+            print(f"{Fore.RED}✗ Aucune fiche contenant le symbole {ticker_symbol} n'a été trouvée dans Obsidian.{Style.RESET_ALL}")
+            return
+
+        # Lecture du contenu
+        with open(filename, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Supprimer la phrase par défaut si présente
+        default_line = "*Ajoutez ici vos notes, analyses et réflexions sur cet ETF...*"
+        content = content.replace(default_line, "").rstrip()
+
+        # Saisie utilisateur
+        print("\nEntre ta note (ligne vide pour terminer) :")
+        lines = []
+        while True:
+            line = input("> ")
+            if not line.strip():
+                break
+            lines.append(line)
+        if not lines:
+            print(f"{Fore.YELLOW}Aucune note ajoutée.{Style.RESET_ALL}")
+            return
+
+        note_text = "\n".join(lines)
+        timestamp = datetime.now().strftime("%d/%m/%Y à %H:%M")
+        new_note_block = f'\n<span style="color:#888;">**🕓 {timestamp}**</span>\n{note_text}\n'
+
+        # Insertion de la note dans la section ## Notes personnelles
+        pattern = r"(## Notes personnelles\s*)([\s\S]*?)(?=\Z)"
+        match = re.search(pattern, content)
+        if match:
+            section_body = match.group(2).strip()
+
+            # Supprimer la phrase par défaut si elle est présente
+            if "*Ajoutez ici vos notes, analyses et réflexions sur cet ETF...*" in section_body:
+                section_body = ""
+
+            # Ajouter la nouvelle note après le contenu existant
+            updated_section = f"## Notes personnelles\n\n{section_body}\n{new_note_block}".strip()
+
+            # Remplacer la section entière dans le contenu global
+            content = re.sub(pattern, updated_section, content)
+        else:
+            # Si la section n'existe pas, on l’ajoute à la fin du fichier
+            content += f"\n## Notes personnelles\n\n{new_note_block}\n"
+
+        # Mise à jour de la date de modification
+        new_modif = datetime.now().strftime('%d/%m/%Y à %H:%M')
+        content = re.sub(
+            r"\*\*Dernière mise à jour :\*\* .*",
+            f"**Dernière mise à jour :** {new_modif}",
+            content
+        )
+
+        # Écriture finale
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"{Fore.WHITE}✓ Note ajoutée dans : {Style.RESET_ALL}{Fore.GREEN}{os.path.basename(filename)}{Style.RESET_ALL}")
+        print(f"{Fore.WHITE}📁 Emplacement : {Style.RESET_ALL}{Fore.GREEN}{os.path.dirname(filename)}{Style.RESET_ALL}")
+
+        print(f"{Fore.GREEN}✏️  Nouvelle note ajoutée le {timestamp}{Style.RESET_ALL}")
+
+    except Exception as e:
+        print(f"{Fore.RED}✗ Erreur lors de l'ajout de la note : {e}{Style.RESET_ALL}")
+        if is_debug_enabled(): log_exception("Erreur append_obsidian_note")

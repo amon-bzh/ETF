@@ -242,6 +242,8 @@ def main():
     parser.add_argument("--benchmark", type=str, help="Comparer avec un benchmark (ex: ^GSPC pour S&P500)")
     parser.add_argument("--editna", action="store_true", help="Éditer uniquement les champs N/A dans la fiche Obsidian")
     parser.add_argument("--editall", action="store_true", help="Modifier tous les champs éditables de la fiche Obsidian")
+    parser.add_argument("--add-note", action="store_true",
+                    help="Ajouter une note personnelle à la fiche Obsidian")
     parser.add_argument("--debug", action="store_true", help="Activer le mode debug avec logs dans fichier")
 
     # Analyser les arguments en ligne de commande
@@ -313,6 +315,9 @@ def main():
         run_rendement(args, fund, info, ticker_symbol)
     elif args.obsidian:
         run_obsidian(fund, yqfund, info, ticker_symbol)
+    elif args.add_note:
+        from etf_obsidian import append_obsidian_note
+        append_obsidian_note(ticker_symbol)
     elif args.all:
         run_all(fund, yqfund, info, ticker_symbol)
     else:
