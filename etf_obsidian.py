@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from colorama import Fore, Style
 import re
+import time
 from etf_utils import detect_indice, get_emetteur_url, get_ratio_emoji, format_date_fr
 from etf_markdown import (
     write_header,
@@ -167,6 +168,9 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         info: dictionnaire des informations du ticker
         ticker_symbol: symbole du ticker
     """
+    
+    total_start = time.time()
+    
     try:
         # Récupération des éléments nécessaires pour créer la fiche Obsidian        
         symbol = info.get('symbol', ticker_symbol)
@@ -433,6 +437,8 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                         user_modified = True
         
         # Répartition sectorielle
+        # Répartition sectorielle
+        t0 = time.time()
         try:
             repartition_fmt, rep_err = get_sector_weights(yqfund, ticker_symbol)
             if rep_err:
@@ -442,8 +448,11 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             print(f"{Fore.RED}Erreur lors de la récupération de la répartition sectorielle: {e}{Style.RESET_ALL}")
             if is_debug_enabled(): log_error(f"Erreur répartition sectorielle: {e}")
             repartition_fmt = "Non disponible"
+        finally:
+            if is_debug_enabled(): log_debug(f"Durée get_sector_weights: {time.time() - t0:.2f}s")
 
         # Principales positions
+        t0 = time.time()
         try:
             top_holdings_fmt, th_err = get_top_holdings(yqfund, ticker_symbol)
             if th_err:
@@ -453,33 +462,45 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             print(f"{Fore.RED}Erreur lors de la récupération des principales positions: {e}{Style.RESET_ALL}")
             if is_debug_enabled(): log_error(f"Erreur principales positions: {e}")
             top_holdings_fmt = "Non disponible"
+        finally:
+            if is_debug_enabled(): log_debug(f"Durée get_top_holdings: {time.time() - t0:.2f}s")
 
         # Calcul de rendement sur 1 an (version complète avec statistiques)
+        t0 = time.time()
         try:
             rendement_data, stats_data = compute_performance_and_stats(fund)
         except Exception as e:
             print(f"{Fore.RED}Erreur lors du calcul des performances: {e}{Style.RESET_ALL}")
             if is_debug_enabled(): log_error(f"Erreur calcul performances: {e}")
             rendement_data, stats_data = {}, {}
+        finally:
+            if is_debug_enabled(): log_debug(f"Durée compute_performance_and_stats: {time.time() - t0:.2f}s")
 
         # YTD (rendement depuis le début de l'année)
+        t0 = time.time()
         try:
             ytd_rendement = compute_ytd_return(fund)
         except Exception as e:
             print(f"{Fore.RED}Erreur lors du calcul YTD: {e}{Style.RESET_ALL}")
             if is_debug_enabled(): log_error(f"Erreur calcul YTD: {e}")
             ytd_rendement = None
+        finally:
+            if is_debug_enabled(): log_debug(f"Durée compute_ytd_return: {time.time() - t0:.2f}s")
 
         # Dividendes
+        t0 = time.time()
         try:
             dividend_info = build_dividend_info(fund, dividendYield)
         except Exception as e:
             print(f"{Fore.RED}Erreur lors de la récupération des dividendes: {e}{Style.RESET_ALL}")
             if is_debug_enabled(): log_error(f"Erreur récupération dividendes: {e}")
             dividend_info = {}
+        finally:
+            if is_debug_enabled(): log_debug(f"Durée build_dividend_info: {time.time() - t0:.2f}s")
         
+        t0 = time.time()
         with open(filename, "w", encoding='utf-8') as file:
-            # En-tête
+            # En-tête et sections Markdown
             write_header(file, symbol_as_tag, original_creation_date, date_creation)
             
             # 1. Généralités
@@ -534,10 +555,15 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             
             # 8. Notes personnelles
             write_notes_section(file)
+        if is_debug_enabled(): log_debug(f"Durée écriture Markdown: {time.time() - t0:.2f}s")
         
         print(f"{Fore.WHITE}✓ Fiche Obsidian créée : {Style.RESET_ALL}{Fore.GREEN}{longName}.md{Style.RESET_ALL}")
         print(f"{Fore.WHITE}📁 Emplacement : {Style.RESET_ALL}{Fore.GREEN}{directory_name}{Style.RESET_ALL}")
-        if is_debug_enabled(): log_info(f"Fiche créée: {filename}")
+        total_time = time.time() - total_start
+        if is_debug_enabled():
+            log_info(f"Fiche créée: {filename}")
+            log_info(f"Durée totale génération fiche {symbol}: {total_time:.2f}s")
+            print(f"{Fore.CYAN}⏱  Durée totale (debug): {total_time:.2f} secondes{Style.RESET_ALL}")
     
     except Exception as e:
         print(f"{Fore.RED}✗ Erreur lors de la création de la fiche Obsidian: {e}{Style.RESET_ALL}")
@@ -612,7 +638,7 @@ def append_obsidian_note(ticker_symbol):
 
         note_text = "\n".join(lines)
         timestamp = datetime.now().strftime("%d/%m/%Y à %H:%M")
-        new_note_block = f'\n<span style="color:#888;">**🕓 {timestamp}**</span>\n{note_text}\n'
+        new_note_block = f'\n<span style="color:#888;">**🕓 {timestamp}**</span> {note_text}\n'
 
         # Insertion de la note dans la section ## Notes personnelles
         pattern = r"(## Notes personnelles\s*)([\s\S]*?)(?=\Z)"
