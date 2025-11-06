@@ -189,6 +189,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         # --- Gestion mise à jour inline de champs existants ---
         file_exists = os.path.exists(filename)
         user_modified = False
+        new_description = None
 
         if file_exists:
             with open(filename, "r", encoding="utf-8") as f:
@@ -211,6 +212,11 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                         original_values[var_name] = current_val
                         break
 
+            # Extraire la section Description actuelle
+            desc_match = re.search(r"## Description\s+([\s\S]+?)(?=## |\Z)", old_content)
+            current_desc = desc_match.group(1).strip() if desc_match else None
+            original_values["description"] = current_desc if current_desc else "Non disponible"
+
             import sys
             edit_na_mode = ("--editna" in sys.argv)
             edit_all_mode = ("--editall" in sys.argv)
@@ -218,7 +224,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             # --- Mode editall: proposer sélection des champs via menu ---
             if file_exists and edit_all_mode:
                 print("\nChamps modifiables :\n")
-                numbered = list(editable_fields.items())
+                numbered = [("Description", "description")] + list(editable_fields.items())
                 for idx, (label, var_key) in enumerate(numbered, start=1):
                     current_val = original_values.get(var_key, "N/A")
                     print(f"{idx}) {label:<22} : {current_val}")
@@ -236,6 +242,30 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                     if 1 <= idx <= len(numbered):
                         label, var_key = numbered[idx - 1]
                         prev_val = original_values.get(var_key, "N/A")
+
+                        # Cas particulier : Description (saisie multiligne)
+                        if var_key == "description":
+                            print("\nLa description actuelle sera remplacée. Laisse vide pour annuler.")
+                            print("Entre ta nouvelle description (ligne vide pour terminer) :")
+                            lines_desc = []
+                            while True:
+                                line = input("> ")
+                                if not line.strip():
+                                    break
+                                lines_desc.append(line)
+                            if lines_desc:
+                                new_val = "\n".join(lines_desc)
+                                new_description = new_val
+                            else:
+                                new_val = prev_val
+
+                            if new_val != prev_val:
+                                user_modified = True
+                                original_values[var_key] = new_val
+                                # mémoriser pour surcharger plus tard businessSummary
+                                globals_var = globals()
+                                locals_var = locals()
+                            continue
 
                         # Cas particulier : Site Web (Markdown link)
                         if var_key == "site_web":
@@ -378,6 +408,29 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         
         # Description
         businessSummary = info.get('longBusinessSummary', info.get('description', 'Non disponible'))
+        # Si l'utilisateur a saisi une description en --editall, la prioriser
+        if 'new_description' in locals() and new_description:
+            businessSummary = new_description
+
+        # --- Vérification et enrichissement manuel de la description (hors editall) ---
+        if file_exists and 'edit_all_mode' in locals() and not edit_all_mode:
+            desc_pattern = re.search(r"## Description\s+([\s\S]+?)(?=## |\Z)", old_content)
+            current_desc = None
+            if desc_pattern:
+                current_desc = desc_pattern.group(1).strip()
+            if not current_desc or current_desc.lower() in ("non disponible", "n/a"):
+                rep = input("\nLa description actuelle est vide ou 'Non disponible'. Souhaites-tu en ajouter une ? (o/n) ").strip().lower()
+                if rep == "o":
+                    print("Entre ta nouvelle description (ligne vide pour terminer) :")
+                    lines = []
+                    while True:
+                        line = input("> ")
+                        if not line.strip():
+                            break
+                        lines.append(line)
+                    if lines:
+                        businessSummary = "\n".join(lines)
+                        user_modified = True
         
         # Répartition sectorielle
         try:
