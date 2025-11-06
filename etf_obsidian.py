@@ -4,6 +4,7 @@
 import os
 from datetime import datetime
 from colorama import Fore, Style
+import re
 from etf_utils import detect_indice, get_emetteur_url, get_ratio_emoji, format_date_fr
 from etf_markdown import (
     write_header,
@@ -16,9 +17,21 @@ from etf_markdown import (
     write_holdings_section,
     write_notes_section
 )
-from etf_data import compute_ytd_return, build_dividend_info, get_sector_weights, get_top_holdings, compute_performance_and_stats
+from etf_data import (
+    compute_ytd_return,
+    build_dividend_info,
+    get_sector_weights,
+    get_top_holdings,
+    compute_performance_and_stats
+)
 
-from etf_logging import log_info, log_warning, log_error, log_exception, is_debug_enabled
+from etf_logging import (
+    log_info,
+    log_warning,
+    log_error,
+    log_exception,
+    is_debug_enabled
+)
 
 # Champs éditables en mode --editall
 editable_fields = {
@@ -211,27 +224,68 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
                     print(f"{idx}) {label:<22} : {current_val}")
 
                 selection = input("\nTape les numéros à modifier (ex: 1,3) ou Enter pour ignorer : ").strip()
+                chosen = set()
                 if selection:
                     try:
                         chosen = {int(x.strip()) for x in selection.split(",") if x.strip().isdigit()}
-                        for idx in chosen:
-                            if 1 <= idx <= len(numbered):
-                                label, var_key = numbered[idx-1]
-                                prev_val = original_values.get(var_key, "N/A")
-                                new_val = input(f"Nouvelle valeur pour {label} (actuel: {prev_val}) : ").strip()
-                                if new_val and new_val != prev_val:
-                                    user_modified = True
-                                    if var_key == "firstTradeDate":
-                                        try:
-                                            # Normaliser format JJ/MM/AAAA si utilisateur donne AAAA-MM-JJ
-                                            if "-" in new_val:
-                                                y,m,d = new_val.split("-")
-                                                new_val = f"{d}/{m}/{y}"
-                                        except:
-                                            pass
-                                    original_values[var_key] = new_val
                     except Exception:
                         print("⚠️ Saisie invalide, aucune modification appliquée.")
+                        chosen = set()
+
+                for idx in sorted(chosen):
+                    if 1 <= idx <= len(numbered):
+                        label, var_key = numbered[idx - 1]
+                        prev_val = original_values.get(var_key, "N/A")
+
+                        # Cas particulier : Site Web (Markdown link)
+                        if var_key == "site_web":
+                            markdown_match = re.match(r'\[(.*?)\]\((.*?)\)', prev_val)
+                            if markdown_match:
+                                current_label, current_url = markdown_match.groups()
+                            else:
+                                current_label, current_url = "Lien", prev_val if prev_val != "N/A" else ""
+
+                            print(f"\nValeur actuelle : {prev_val}")
+                            print("Souhaites-tu modifier le libellé, le lien, ou les deux ?")
+                            print("(1) Libellé")
+                            print("(2) Lien")
+                            print("(3) Les deux")
+                            print("(4) Annuler")
+                            choix = input("Choix : ").strip()
+
+                            if choix == "1":
+                                new_label = input(f"Nouveau libellé (actuel : {current_label}) : ").strip()
+                                new_val = f"[{new_label}]({current_url})" if new_label else prev_val
+                            elif choix == "2":
+                                new_url = input(f"Nouvelle URL (actuelle : {current_url}) : ").strip()
+                                new_val = f"[{current_label}]({new_url})" if new_url else prev_val
+                            elif choix == "3":
+                                new_label = input(f"Nouveau libellé (actuel : {current_label}) : ").strip()
+                                new_url = input(f"Nouvelle URL (actuelle : {current_url}) : ").strip()
+                                new_label = new_label or current_label
+                                new_url = new_url or current_url
+                                new_val = f"[{new_label}]({new_url})"
+                            else:
+                                print("Aucune modification effectuée pour le champ Site Web.")
+                                new_val = prev_val
+                        else:
+                            # Cas générique (tous les autres champs)
+                            new_val = input(f"Nouvelle valeur pour {label} (actuel: {prev_val}) : ").strip()
+                            if new_val and new_val != prev_val:
+                                if var_key == "firstTradeDate":
+                                    try:
+                                        if "-" in new_val:
+                                            y, m, d = new_val.split("-")
+                                            new_val = f"{d}/{m}/{y}"
+                                    except Exception:
+                                        pass
+                            else:
+                                new_val = prev_val
+
+                        # Si valeur modifiée
+                        if new_val != prev_val:
+                            user_modified = True
+                            original_values[var_key] = new_val
 
             def maybe_replace(field_label, var_name, current):
                 nonlocal user_modified
@@ -316,7 +370,11 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         # category, indice_replique, firstTradeDate, isin : conservés
         
         # URL du site émetteur
-        site_web = get_emetteur_url(fundFamily, longName)
+        # Ne pas écraser si l'utilisateur a déjà défini une valeur personnalisée
+        if not (file_exists and user_modified and "site_web" in original_values and original_values["site_web"] != "N/A"):
+            site_web = get_emetteur_url(fundFamily, longName)
+        else:
+            site_web = original_values.get("site_web", get_emetteur_url(fundFamily, longName))
         
         # Description
         businessSummary = info.get('longBusinessSummary', info.get('description', 'Non disponible'))
