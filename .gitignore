@@ -22,3 +22,6 @@ Thumbs.db
 # Logs
 *.log
 etfinfo_*.log
+
+.obsidian_test_mode
+ObsidianTest/
