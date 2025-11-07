@@ -3,7 +3,8 @@ from datetime import datetime
 import numpy as np
 from datetime import datetime
 from etf_utils import get_ratio_emoji
-from etf_logging import log_info, log_warning, log_error, is_debug_enabled
+import time
+from etf_logging import log_debug, log_info, log_warning, log_error, is_debug_enabled
 
 def compute_ytd_return(fund):
     """
@@ -73,34 +74,52 @@ def compute_performance_and_stats(fund):
     Returns:
         rendement_data (dict), stats_data (dict)
     """
+    t0 = time.time()
     if is_debug_enabled():
-        log_info("compute_performance_and_stats: start")
+        log_debug("Début compute_performance_and_stats")
     rendement_data = {}
     stats_data = {}
     try:
+        # --- Étape 1 : Récupération historique ---
+        t_hist = time.time()
         hist_1y = fund.history(period='1y')
         if len(hist_1y) <= 1:
             if is_debug_enabled():
                 log_warning("compute_performance_and_stats: insufficient price history")
             return {}, {}
+        if is_debug_enabled(): log_debug(f"Durée récupération historique: {time.time() - t_hist:.2f}s")
 
+        # --- Étape 2 : Calculs de rendement simples ---
+        t_rend = time.time()
         prix_debut = hist_1y['Close'].iloc[0]
         prix_fin = hist_1y['Close'].iloc[-1]
         rendement_simple = ((prix_fin - prix_debut) / prix_debut) * 100
+        if is_debug_enabled(): log_debug(f"Durée calcul rendement simple: {time.time() - t_rend:.2f}s")
 
+        # --- Étape 3 : Calculs de rendement total et volatilité ---
+        t_vol = time.time()
         dividends_1y = fund.dividends[hist_1y.index[0]:hist_1y.index[-1]]
         total_dividends = dividends_1y.sum() if hasattr(dividends_1y, 'empty') and not dividends_1y.empty else 0
         rendement_total = ((prix_fin + total_dividends - prix_debut) / prix_debut) * 100
 
         returns = hist_1y['Close'].pct_change().dropna()
         volatilite = returns.std() * np.sqrt(252) * 100
+        
+        if is_debug_enabled():
+            log_debug(f"Durée volatilité: {time.time() - t_vol:.2f}s")
 
+        # --- Étape 4 : Drawdown ---
+        t_dd = time.time()
         cumulative = (1 + returns).cumprod()
         running_max = cumulative.expanding().max()
         drawdown = (cumulative - running_max) / running_max
         max_drawdown = drawdown.min() * 100
         max_dd_date = drawdown.idxmin().strftime('%d/%m/%Y')
+        if is_debug_enabled():
+            log_debug(f"Durée drawdown: {time.time() - t_dd:.2f}s")
 
+        # --- Étape 5 : Statistiques descriptives ---
+        t_stats = time.time()
         prix_min = hist_1y['Close'].min()
         prix_max = hist_1y['Close'].max()
         prix_moyen = hist_1y['Close'].mean()
@@ -111,7 +130,10 @@ def compute_performance_and_stats(fund):
 
         meilleur_jour = returns.max() * 100
         pire_jour = returns.min() * 100
+        if is_debug_enabled():
+            log_debug(f"Durée statistiques descriptives: {time.time() - t_stats:.2f}s")
 
+        # --- Étape 6 : Ratios de performance ---
         sharpe_ratio = rendement_total / volatilite if volatilite > 0 else 0
 
         negative_returns = returns[returns < 0]
@@ -122,9 +144,19 @@ def compute_performance_and_stats(fund):
                 sortino_ratio = rendement_total / downside_vol
 
         calmar_ratio = rendement_total / abs(max_drawdown) if abs(max_drawdown) > 0 else 0
+        if is_debug_enabled():
+            log_debug(f"Durée calcul ratios: {time.time() - t_ratio:.2f}s")
 
+        # --- Étape 7 : Emojis et alertes ---
+        t_emoji = time.time()
         sharpe_emoji, sharpe_alert = get_ratio_emoji(sharpe_ratio, 'sharpe')
         sortino_emoji, sortino_alert = get_ratio_emoji(sortino_ratio, 'sortino')
+        if is_debug_enabled():
+            log_debug(f"Durée génération emojis: {time.time() - t_emoji:.2f}s")
+
+        total_time = time.time() - t0
+        if is_debug_enabled():
+            log_debug(f"Durée totale interne compute_performance_and_stats: {total_time:.2f}s")
 
         rendement_data = {
             'rendement_simple': rendement_simple,
