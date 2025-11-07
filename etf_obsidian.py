@@ -197,8 +197,10 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         new_description = None
 
         if file_exists:
+            t_read = time.time()
             with open(filename, "r", encoding="utf-8") as f:
                 old_content = f.read()
+            if is_debug_enabled(): log_debug(f"Durée lecture fiche existante: {time.time() - t_read:.2f}s")
             lines = old_content.splitlines()
 
             fields_to_check = {
@@ -499,6 +501,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         finally:
             if is_debug_enabled(): log_debug(f"Durée build_dividend_info: {time.time() - t0:.2f}s")
         
+        t_write = time.time()
         t0 = time.time()
         with open(filename, "w", encoding='utf-8') as file:
             # En-tête et sections Markdown
@@ -557,6 +560,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             # 8. Notes personnelles
             write_notes_section(file)
         if is_debug_enabled(): log_debug(f"Durée écriture Markdown: {time.time() - t0:.2f}s")
+        if is_debug_enabled(): log_debug(f"Durée écriture fiche Obsidian: {time.time() - t_write:.2f}s")
         
         print(f"{Fore.WHITE}✓ Fiche Obsidian créée : {Style.RESET_ALL}{Fore.GREEN}{longName}.md{Style.RESET_ALL}")
         print(f"{Fore.WHITE}📁 Emplacement : {Style.RESET_ALL}{Fore.GREEN}{directory_name}{Style.RESET_ALL}")
