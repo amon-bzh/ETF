@@ -27,6 +27,7 @@ from etf_data import (
 )
 
 from etf_logging import (
+    log_debug,
     log_info,
     log_warning,
     log_error,
