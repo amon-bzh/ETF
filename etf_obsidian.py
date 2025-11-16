@@ -585,6 +585,9 @@ def append_obsidian_note(ticker_symbol):
     Ajoute une note personnelle à la fiche Obsidian existante pour le ticker donné.
     """
     from datetime import datetime
+    import tempfile
+    import subprocess
+    import os
 
     try:
         # Déterminer le bon répertoire (mode test ou Vault principal)
@@ -629,19 +632,23 @@ def append_obsidian_note(ticker_symbol):
         default_line = "*Ajoutez ici vos notes, analyses et réflexions sur cet ETF...*"
         content = content.replace(default_line, "").rstrip()
 
-        # Saisie utilisateur
-        print("\nEntre ta note (ligne vide pour terminer) :")
-        lines = []
-        while True:
-            line = input("> ")
-            if not line.strip():
-                break
-            lines.append(line)
-        if not lines:
+        # Saisie via éditeur
+        editor = os.environ.get("EDITOR", "vi")
+
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".md") as tf:
+            temp_path = tf.name
+            tf.write("# Écris ta note ici, supprime cette ligne.\n")
+
+        subprocess.call([editor, temp_path])
+
+        with open(temp_path, "r") as tf:
+            note_text = tf.read().strip()
+
+        os.unlink(temp_path)
+
+        if not note_text or note_text.startswith("# Écris ta note"):
             print(f"{Fore.YELLOW}Aucune note ajoutée.{Style.RESET_ALL}")
             return
-
-        note_text = "\n".join(lines)
         timestamp = datetime.now().strftime("%d/%m/%Y à %H:%M")
         new_note_block = f'\n<span style="color:#888;">**🕓 {timestamp}**</span> {note_text}\n'
 

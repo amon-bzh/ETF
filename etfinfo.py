@@ -313,11 +313,13 @@ def main():
         run_history(fund, info, ticker_symbol)
     elif args.rendement:
         run_rendement(args, fund, info, ticker_symbol)
-    elif args.obsidian:
-        run_obsidian(fund, yqfund, info, ticker_symbol)
     elif args.add_note:
         from etf_obsidian import append_obsidian_note
         append_obsidian_note(ticker_symbol)
+        log_info(f"Note ajoutée pour {ticker_symbol} via --add-note")
+        return 0, args, ticker_symbol, None, None, None
+    elif args.obsidian:
+        run_obsidian(fund, yqfund, info, ticker_symbol)
     elif args.all:
         run_all(fund, yqfund, info, ticker_symbol)
     else:
