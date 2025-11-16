@@ -197,8 +197,10 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         new_description = None
 
         if file_exists:
+            t_read = time.time()
             with open(filename, "r", encoding="utf-8") as f:
                 old_content = f.read()
+            if is_debug_enabled(): log_debug(f"Durée lecture fiche existante: {time.time() - t_read:.2f}s")
             lines = old_content.splitlines()
 
             fields_to_check = {
@@ -499,6 +501,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
         finally:
             if is_debug_enabled(): log_debug(f"Durée build_dividend_info: {time.time() - t0:.2f}s")
         
+        t_write = time.time()
         t0 = time.time()
         with open(filename, "w", encoding='utf-8') as file:
             # En-tête et sections Markdown
@@ -557,6 +560,7 @@ def write_to_obsidian(fund, yqfund, info, ticker_symbol):
             # 8. Notes personnelles
             write_notes_section(file)
         if is_debug_enabled(): log_debug(f"Durée écriture Markdown: {time.time() - t0:.2f}s")
+        if is_debug_enabled(): log_debug(f"Durée écriture fiche Obsidian: {time.time() - t_write:.2f}s")
         
         print(f"{Fore.WHITE}✓ Fiche Obsidian créée : {Style.RESET_ALL}{Fore.GREEN}{longName}.md{Style.RESET_ALL}")
         print(f"{Fore.WHITE}📁 Emplacement : {Style.RESET_ALL}{Fore.GREEN}{directory_name}{Style.RESET_ALL}")
@@ -581,6 +585,9 @@ def append_obsidian_note(ticker_symbol):
     Ajoute une note personnelle à la fiche Obsidian existante pour le ticker donné.
     """
     from datetime import datetime
+    import tempfile
+    import subprocess
+    import os
 
     try:
         # Déterminer le bon répertoire (mode test ou Vault principal)
@@ -625,19 +632,23 @@ def append_obsidian_note(ticker_symbol):
         default_line = "*Ajoutez ici vos notes, analyses et réflexions sur cet ETF...*"
         content = content.replace(default_line, "").rstrip()
 
-        # Saisie utilisateur
-        print("\nEntre ta note (ligne vide pour terminer) :")
-        lines = []
-        while True:
-            line = input("> ")
-            if not line.strip():
-                break
-            lines.append(line)
-        if not lines:
+        # Saisie via éditeur
+        editor = os.environ.get("EDITOR", "vi")
+
+        with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".md") as tf:
+            temp_path = tf.name
+            tf.write("# Écris ta note ici, supprime cette ligne.\n")
+
+        subprocess.call([editor, temp_path])
+
+        with open(temp_path, "r") as tf:
+            note_text = tf.read().strip()
+
+        os.unlink(temp_path)
+
+        if not note_text or note_text.startswith("# Écris ta note"):
             print(f"{Fore.YELLOW}Aucune note ajoutée.{Style.RESET_ALL}")
             return
-
-        note_text = "\n".join(lines)
         timestamp = datetime.now().strftime("%d/%m/%Y à %H:%M")
         new_note_block = f'\n<span style="color:#888;">**🕓 {timestamp}**</span> {note_text}\n'
 
